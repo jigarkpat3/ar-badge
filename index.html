@@ -5,19 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=7: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/app.js?v=7" defer></script>
-  <script src="js/camera.js?v=7" defer></script>
-  <script src="js/sync.js?v=7" defer></script>
-  <script src="js/video.js?v=7" defer></script>
-  <script src="js/components.js?v=7" defer></script>
+       ?v=8: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=8" defer></script>
+  <script src="js/camera.js?v=8" defer></script>
+  <script src="js/sync.js?v=8" defer></script>
+  <script src="js/video.js?v=8" defer></script>
+  <script src="js/coach.js?v=8" defer></script>
+  <script src="js/runlog.js?v=8" defer></script>
+  <script src="js/components.js?v=8" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -37,7 +39,7 @@
        outline to line the badge up with; it turns green when the badge is found.
        The button unlocks after a moment of steady tracking (app.js). -->
   <div id="framing" class="hidden">
-    <p id="framing-status">Looking for your badge…</p>
+    <p id="framing-status" class="glass">Looking for your badge…</p>
     <div id="framing-outline"></div>
     <div id="framing-bottom">
       <ul id="framing-tips">
@@ -84,6 +86,8 @@
   <div id="debug" class="hidden">
     <pre id="debug-text"></pre>
     <button id="debug-seethrough">See-through</button>
+    <button id="debug-logbutton">Log</button>
+    <pre id="debug-log" class="hidden"></pre>
   </div>
 
   <!--
@@ -114,6 +118,8 @@
     <!-- What you see. follow-badge glides this toward the raw badge position
          every frame (smooths jitter, holds through dropouts, fades in/out). -->
     <a-entity id="overlay-holder" follow-badge="target: #badge-target">
+      <!-- Soft shadow just behind the overlay (components.js, soft-shadow). -->
+      <a-entity id="overlay-shadow" soft-shadow></a-entity>
       <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape
            (overlay.mp4 is cropped to 720x960 = 3:4, so it fills it exactly). -->
       <a-plane id="overlay"

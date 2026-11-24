@@ -102,8 +102,10 @@ AFRAME.registerComponent('follow-badge', {
   },
 
   setOpacity: function (value) {
+    // Each part fades together; a part can have its own full strength
+    // (material.userData.baseOpacity, e.g. the shadow is only 35% dark).
     this.el.object3D.traverse((obj) => {
-      if (obj.material) obj.material.opacity = value;
+      if (obj.material) obj.material.opacity = value * (obj.material.userData.baseOpacity ?? 1);
     });
   },
 });
@@ -169,5 +171,58 @@ AFRAME.registerComponent('rounded-corners', {
     mesh.material.alphaMap = this.alphaMap;
     mesh.material.transparent = true;
     mesh.material.needsUpdate = true;
+    mesh.renderOrder = 1;   // always drawn after (on top of) the shadow
+  },
+});
+
+// A soft shadow under the overlay, so on a table it looks like it lies on the
+// badge instead of being pasted on (the overscan hides the badge's own shadow).
+// A plain black plane, a bit bigger than the badge, just behind the overlay,
+// with a blurry rounded-rectangle alpha map, shifted a little down so it's
+// heavier toward the bottom edge. It fades with the overlay (follow-badge).
+// Turn off with ?shadow=0.
+AFRAME.registerComponent('soft-shadow', {
+  init: function () {
+    const S = TUNING.shadow;
+    if (!S.enabled) return;
+    const THREE = AFRAME.THREE;
+    const blur = S.blur;                     // in badge widths
+    const pad = 3 * blur;                    // room for the fade around the badge
+    const pw = 1 + 2 * pad, ph = 4 / 3 + 2 * pad;
+
+    // Alpha map: 1 under the badge, fading to 0 over about 2 x blur outside it.
+    const w = 256, h = Math.round(w * ph / pw);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const r = TUNING.cornerRadius;
+    for (let j = 0; j < h; j++) {
+      const py = Math.abs(((j + 0.5) / h - 0.5) * ph) - (2 / 3 - r);
+      for (let i = 0; i < w; i++) {
+        const px = Math.abs(((i + 0.5) / w - 0.5) * pw) - (0.5 - r);
+        const d = Math.hypot(Math.max(px, 0), Math.max(py, 0)) + Math.min(Math.max(px, py), 0) - r;
+        const t = Math.min(1, Math.max(0, (d + blur * 0.5) / (blur * 2.5)));
+        const v = Math.round(255 * (1 - t) * (1 - t));
+        const k = (j * w + i) * 4;
+        img.data[k] = img.data[k + 1] = img.data[k + 2] = v;
+        img.data[k + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      alphaMap: new THREE.CanvasTexture(canvas),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,   // never hides anything; just darkens what's behind
+    });
+    material.userData.baseOpacity = S.opacity;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), material);
+    mesh.position.set(0, -S.offsetDown, -S.depth);   // a bit down, a bit behind the overlay
+    mesh.renderOrder = 0;
+    this.el.setObject3D('mesh', mesh);
   },
 });

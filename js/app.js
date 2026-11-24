@@ -32,8 +32,36 @@ const TUNING = {
     holdMs: 500,           // keep showing the photo this long after the badge is lost
     fadeInMs: 200,
     fadeOutMs: 250,
-    hintDelayMs: 400,      // after the photo has faded, wait this long before the
-                           // hint shows (no hint flashing during a quick re-find)
+  },
+
+  // Live tips (coach.js). Each problem has an "on" and a lower "off" value so
+  // the tip doesn't flicker on and off at the edge.
+  coach: {
+    moveOn: 1.0, moveOff: 0.5,         // "Hold steady": badge speed (widths or radians per second)
+    slowRateOn: 12, slowRateOff: 20,   //   ...or (last) MindAR updating fewer times a second than this
+    farOn: 0.30, farOff: 0.36,         // "Move closer": badge width as a share of the screen width
+    closeOn: 0.95, closeOff: 0.88,     // "Move back a little"
+    angleOn: 55, angleOff: 45,         // "Face the badge more directly": degrees from straight on
+    glareLevel: 250,                   // a pixel is "blown out" at this brightness (0-255, all colors)
+    glareOn: 0.03, glareOff: 0.015,    // "Tilt to avoid glare": biggest blown-out patch, share of the badge
+    darkOn: 0.16, darkOff: 0.22,       // "Find better light": average picture brightness (0-1)
+    notFoundMs: 4000,                  // framing: after this long without the badge, rotate these tips
+    searchTips: ['Hold the badge flat', 'Fill the outline', 'Find good light'],
+    searchTipMs: 3000,
+    showAfterMs: 500,                  // a tip must be wanted this long before it shows (framing)
+    showAfterMsExperience: 1000,       //   ...and during the experience (fewer interruptions)
+    lostTipAfterMs: 400,               // "Point your camera at the badge": after the photo has fully faded
+    minShowMs: 1500,                   // a shown tip stays at least this long
+    clearAfterMs: 600,                 // a tip goes away once it's no longer wanted for this long
+  },
+
+  // Soft shadow under the overlay (components.js, soft-shadow). ?shadow=0 turns it off.
+  shadow: {
+    enabled: true,
+    opacity: 0.35,       // darkness right under the badge
+    blur: 0.05,          // how soft, in badge widths
+    offsetDown: 0.02,    // shifted down a little (heavier toward the bottom edge), badge widths
+    depth: 0.01,         // how far behind the overlay, badge widths (avoids flicker)
   },
 
   // The camera (camera.js).
@@ -52,6 +80,8 @@ const TUNING = {
 
   // Framing screen (before the experience starts).
   framing: {
+    minTrackRate: 25,  // MindAR updates per second needed before unlocking
+    maxSpeed: 0.6,     // and the badge must be this calm (badge widths or radians per second)
     steadyMs: 1500,  // the badge must be tracked this long without a break before
                      // "Start the experience" unlocks. This also gives both
                      // smoothing filters time to settle, so the first photo frame
@@ -80,6 +110,7 @@ const TUNING = {
 const urlParams = new URLSearchParams(location.search);
 if (Number(urlParams.get('fov')) > 0) TUNING.camera.fovDeg = Number(urlParams.get('fov'));
 if (urlParams.get('sync') === '0') TUNING.sync = false;
+if (urlParams.get('shadow') === '0') TUNING.shadow.enabled = false;
 
 // ---------------------------------------------------------------------------
 const sceneEl       = document.querySelector('a-scene');
@@ -135,6 +166,7 @@ startButton.addEventListener('click', () => {
   hide(startScreen);
   show(loadingScreen);   // dark cover until the camera view is sized (see arReady)
   overlayVideo.preload();   // video.js: start downloading the video during framing
+  runLog.start();           // runlog.js: first-20-seconds log (see ?debug)
   startAR();
 });
 
@@ -160,7 +192,7 @@ function restartAR() {
   arIsReady = false;
   show(loadingScreen);
   lockFraming();
-  updateHint();
+  runLog.note('restart (camera size changed)');
   arSystem.stop();
   // Tell the badge entity it's lost, so no old position lingers (MindAR's own method).
   badgeEl.components['mindar-image-target'].updateWorldMatrix(null);
@@ -181,7 +213,7 @@ sceneEl.addEventListener('arReady', () => {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     hide(loadingScreen);
     if (!experienceStarted) show(framing);   // step 3: line the badge up
-    updateHint();
+    coach.refresh();
   }));
 });
 
@@ -192,33 +224,49 @@ sceneEl.addEventListener('arError', () => {
 });
 
 // 3. Framing screen. The outline turns green when MindAR finds the badge.
-//    After TUNING.framing.steadyMs of tracking without a break, the button
-//    unlocks. If the badge is lost first (or while waiting to be tapped), it
-//    locks again and the wait starts over.
+//    The button unlocks after TUNING.framing.steadyMs of tracking that is
+//    unbroken AND healthy: MindAR updating at least minTrackRate times a
+//    second and the badge not moving fast. If tracking is slow (e.g. the phone
+//    is still warming up on the first run) the wait simply takes longer, so the
+//    experience never starts while the tracking is still wobbly.
+//    Losing the badge locks it again and the wait starts over.
 let experienceStarted = false;
-let steadyTimer = null;
-let foundAt = 0;   // when the current unbroken stretch of tracking began (for ?debug)
+let healthySince = 0;   // start of the current healthy stretch (0 = not healthy)
+let foundAt = 0;        // when the current unbroken stretch of tracking began
 
 badgeEl.addEventListener('targetFound', () => {
   if (experienceStarted) return;
   framing.classList.add('found');
-  framingStatus.textContent = 'Badge found, hold steady…';
   foundAt = performance.now();
-  clearTimeout(steadyTimer);
-  steadyTimer = setTimeout(() => {
-    experienceButton.disabled = false;
-    framingStatus.textContent = 'Ready!';
-  }, TUNING.framing.steadyMs);
+  coach.setFramingStatus('Badge found, hold steady…');
 });
 badgeEl.addEventListener('targetLost', () => { if (!experienceStarted) lockFraming(); });
 
 function lockFraming() {
-  clearTimeout(steadyTimer);
+  healthySince = 0;
   foundAt = 0;
   framing.classList.remove('found');
-  framingStatus.textContent = 'Looking for your badge…';
+  coach.setFramingStatus('Looking for your badge…');
   experienceButton.disabled = true;
 }
+
+setInterval(function checkReady() {
+  if (experienceStarted || !foundAt) return;
+  const F = TUNING.framing, m = coach.metrics, now = performance.now();
+  const healthy = now - foundAt > 1000 ? (m.rate >= F.minTrackRate && m.speed < F.maxSpeed)
+                                       : m.speed < F.maxSpeed;   // rate needs 1 s to count
+  if (!healthy) {
+    healthySince = 0;
+    if (!experienceButton.disabled) { experienceButton.disabled = true; coach.setFramingStatus('Badge found, hold steady…'); }
+    return;
+  }
+  if (!healthySince) healthySince = now;
+  if (experienceButton.disabled && now - healthySince >= F.steadyMs) {
+    experienceButton.disabled = false;
+    coach.setFramingStatus('Ready!');
+    runLog.note('unlocked');
+  }
+}, 100);
 
 // 4. Second tap: start the experience. The photo has been following the
 //    badge invisibly all along, so it fades in already in the right place.
@@ -227,27 +275,16 @@ function lockFraming() {
 experienceButton.addEventListener('click', () => {
   overlayVideo.startWithSound();   // video.js: video.muted = false; video.play(). Keep it first.
   experienceStarted = true;
-  clearTimeout(steadyTimer);
   hide(framing);
   follow().revealed = true;   // follow-badge fades the photo in
   updateSync();
-  updateHint();
+  coach.refresh();
+  runLog.note('experience');
 });
 
-// 5. During the experience. If the badge is lost, the photo holds, fades and the
-//    hint shows (all as before); we wait for the badge, no going back to framing.
-// The hint follows the photo, not MindAR's raw found/lost events: it shows
-// only once the photo has fully faded out, and hides as soon as it comes back.
-let hintTimer = null;
-function updateHint() {
-  clearTimeout(hintTimer);
-  if (arIsReady && experienceStarted && follow().state === 'hidden') {
-    hintTimer = setTimeout(() => show(hint), TUNING.follow.hintDelayMs);
-  } else {
-    hide(hint);
-  }
-}
-holderEl.addEventListener('overlaystate', updateHint);
+// 5. During the experience. If the badge is lost, the photo holds and fades,
+//    then coach.js shows "Point your camera at the badge" (or a better tip);
+//    we wait for the badge, no going back to framing.
 
 // Pause the video when the photo has fully faded out, resume when it's back.
 holderEl.addEventListener('overlaystate', () => overlayVideo.onOverlayState(follow().state));
@@ -280,6 +317,13 @@ if (urlParams.has('debug')) {
   requestAnimationFrame(countFrame);
   badgeEl.addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
 
+  // "Log": the first-20-seconds log of this run and the previous one (runlog.js).
+  const logBox = document.querySelector('#debug-log');
+  document.querySelector('#debug-logbutton').addEventListener('click', () => {
+    logBox.textContent = runLog.text();
+    logBox.classList.toggle('hidden');
+  });
+
   document.querySelector('#debug-seethrough').addEventListener('click', () => {
     follow().seeThrough = !follow().seeThrough;   // half-transparent photo, to check the fit
   });
@@ -290,8 +334,11 @@ if (urlParams.has('debug')) {
       `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
       `state ${follow().state}  restarts ${restarts}`,
       experienceStarted ? 'phase experience'
-        : `phase framing  steady ${foundAt ? Math.round(performance.now() - foundAt) : 0}/${TUNING.framing.steadyMs} ms`,
+        : `phase framing  found ${foundAt ? Math.round(performance.now() - foundAt) : 0} ms  healthy ${healthySince ? Math.round(performance.now() - healthySince) : 0}/${TUNING.framing.steadyMs} ms`,
       overlayVideo.debugText(),
+      `tip "${coach.tip() || '-'}"`,
+      (({ rate, speed, size, angle, light, glare, cutOff }) =>
+        `rate ${rate} speed ${speed.toFixed(2)} size ${size.toFixed(2)}${cutOff ? ' CUT' : ''} angle ${angle.toFixed(0)} light ${light.toFixed(2)} glare ${(100 * glare).toFixed(0)}%`)(coach.metrics),
       `camera ${v ? v.videoWidth + 'x' + v.videoHeight : '-'} @${cameraReport.fps}fps  tries ${cameraReport.tries.join('>') || '-'}`,
       `input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}  fov ${TUNING.camera.fovDeg}`,
       cameraSync ? `sync ${cameraSync.stats.active ? 'on' : 'standby'}  analyse ${Math.round(cameraSync.stats.lastAnalyseMs)} ms` : 'sync off (?sync=0)',
