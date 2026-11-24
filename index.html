@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=3" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=3: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/app.js?v=3" defer></script>
-  <script src="js/camera.js?v=3" defer></script>
-  <script src="js/components.js?v=3" defer></script>
+       ?v=4: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=4" defer></script>
+  <script src="js/camera.js?v=4" defer></script>
+  <script src="js/sync.js?v=4" defer></script>
+  <script src="js/components.js?v=4" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->

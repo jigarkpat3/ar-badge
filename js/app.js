@@ -9,18 +9,21 @@ const TUNING = {
   // MindAR's own smoothing (a "One Euro" filter on the raw pose).
   //   filterMinCF: smoothing when still. Lower = steadier but laggier. 0.001 = 1 Hz.
   //   filterBeta:  how fast smoothing switches off when moving. Higher = less lag.
+  //   Round 4: beta 30 (was 10): smoothing switches off sooner when moving.
   mindar: {
     filterMinCF: 0.001,
-    filterBeta: 10,
+    filterBeta: 30,
     warmupTolerance: 5,  // frames the badge must be seen before "found" (MindAR default 5)
     missTolerance: 5,    // frames the badge can be missed before "lost" (MindAR default 5)
   },
 
   // Our extra smoothing on top (components.js, follow-badge).
   follow: {
-    restSmoothTime: 0.12,  // seconds; used when the badge is still (hides jitter)
-    fastSmoothTime: 0.01,  // seconds; used when it moves (keeps up, little lag)
-    restMotion: 0.006,     // below this much difference we count as "still"
+    // Round 4 (simulation with MindAR's real filter): vs round 3 about 35% less
+    // shake when still and about half the trail on fast moves.
+    restSmoothTime: 0.22,  // seconds; used when the badge is still (hides jitter)
+    fastSmoothTime: 0,     // seconds; used when it moves (0 = no delay at all)
+    restMotion: 0.008,     // below this much difference we count as "still"
     fastMotion: 0.025,     // above this we count as "moving fast"
                            // (both in badge widths for position, radians for angle)
     depthWeight: 0.3,      // count distance changes less (they're the noisiest)
@@ -31,12 +34,17 @@ const TUNING = {
 
   // The camera (camera.js).
   camera: {
-    width: 1280,   // the feed size we ask for (the phone gives the closest it has;
-    height: 720,   // in portrait an iPhone turns 1280x720 into 720x1280)
+    longSide: 1280,  // the feed size we ask for (the phone gives the closest it has)
+    shortSide: 720,
+    fps: 60,         // frames per second we ask for (fresher frames = less lag); 0 = don't ask
     fovDeg: 70,    // how wide the camera sees along its long side, in degrees.
                    // Measured about 71 from Jigar's iPhone recording. Try others
                    // without editing code: add ?fov=65 to the address.
   },
+
+  // Show the camera frame the tracking used, so photo and picture move together
+  // (sync.js). Compare with the old behaviour by adding ?sync=0 to the address.
+  sync: true,
 
   cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
 };
@@ -44,6 +52,7 @@ const TUNING = {
 // Optional override from the address, e.g. ...?debug&fov=65
 const urlParams = new URLSearchParams(location.search);
 if (Number(urlParams.get('fov')) > 0) TUNING.camera.fovDeg = Number(urlParams.get('fov'));
+if (urlParams.get('sync') === '0') TUNING.sync = false;
 
 // ---------------------------------------------------------------------------
 const sceneEl       = document.querySelector('a-scene');
@@ -73,10 +82,11 @@ function showError(message) {
 }
 
 // 1. Enable the button once A-Frame has built the scene.
-let arSystem;
+let arSystem, cameraSync = null;
 function onSceneLoaded() {
   arSystem = sceneEl.systems['mindar-image-system'];
   useRealCameraFov(arSystem);   // camera.js: fixes the skew on tilted badges
+  if (TUNING.sync) cameraSync = syncCameraView(arSystem);   // sync.js: fixes the lag
   startButton.disabled = false;
   startButton.textContent = 'Tap to start';
 }
@@ -160,6 +170,11 @@ function updateHint() {
 }
 holderEl.addEventListener('overlaystate', updateHint);
 
+// The synced camera picture is used while the photo is on screen (sync.js).
+holderEl.addEventListener('overlaystate', () => {
+  if (cameraSync) cameraSync.setWanted(holderEl.components['follow-badge'].state !== 'hidden');
+});
+
 // If the target file fails to load, MindAR doesn't fire arError, so catch it here.
 window.addEventListener('unhandledrejection', (event) => {
   if (arIsReady) return;
@@ -190,8 +205,9 @@ if (urlParams.has('debug')) {
     text.textContent = [
       `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
       `state ${follow().state}  restarts ${restarts}`,
-      `asked ${TUNING.camera.width}x${TUNING.camera.height}  got ${v ? v.videoWidth + 'x' + v.videoHeight : '-'}`,
+      `camera ${v ? v.videoWidth + 'x' + v.videoHeight : '-'} @${cameraReport.fps}fps  tries ${cameraReport.tries.join('>') || '-'}`,
       `input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}  fov ${TUNING.camera.fovDeg}`,
+      cameraSync ? `sync ${cameraSync.stats.active ? 'on' : 'standby'}  analyse ${Math.round(cameraSync.stats.lastAnalyseMs)} ms` : 'sync off (?sync=0)',
       `screen ${innerWidth}x${innerHeight}  page ${document.body.clientWidth}x${document.body.clientHeight}`,
     ].join('\n');
   }, 250);

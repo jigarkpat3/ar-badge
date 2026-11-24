@@ -84,7 +84,7 @@ AFRAME.registerComponent('follow-badge', {
     const smoothTime = T.restSmoothTime + (T.fastSmoothTime - T.restSmoothTime) * k;
 
     // Exponential smoothing that behaves the same at 30 or 60 frames per second.
-    const a = 1 - Math.exp(-dt / smoothTime);
+    const a = smoothTime > 0 ? 1 - Math.exp(-dt / smoothTime) : 1;   // 0 = jump straight there
     me.position.lerp(this.rawPos, a);
     me.quaternion.slerp(this.rawRot, a);
     me.scale.lerp(this.rawScale, a);
