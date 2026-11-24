@@ -1,9 +1,20 @@
 {
   "version": 1,
-  "rev": 1,
-  "updatedAt": "2026-11-24T06:30:00Z",
-  "live": "video-2026-11-24-sachu",
+  "rev": 2,
+  "updatedAt": "2026-11-24T06:36:34.567Z",
+  "live": "image-20261124-063633-axn",
   "items": [
+    {
+      "id": "image-20261124-063633-axn",
+      "type": "image",
+      "file": "media/image-20261124-063633-axn.jpg",
+      "w": 675,
+      "h": 900,
+      "sizeBytes": 110468,
+      "poster": "media/image-20261124-063633-axn.jpg",
+      "title": "Test photo (delete me)",
+      "uploadedAt": "2026-11-24T06:36:33.614Z"
+    },
     {
       "id": "video-2026-11-24-sachu",
       "type": "video",
