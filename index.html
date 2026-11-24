@@ -5,23 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=11" />
+  <link rel="stylesheet" href="css/style.css?v=12" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=11: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/media.js?v=11" defer></script>
-  <script src="js/desktop.js?v=11" defer></script>
-  <script src="js/app.js?v=11" defer></script>
-  <script src="js/camera.js?v=11" defer></script>
-  <script src="js/sync.js?v=11" defer></script>
-  <script src="js/video.js?v=11" defer></script>
-  <script src="js/coach.js?v=11" defer></script>
-  <script src="js/runlog.js?v=11" defer></script>
-  <script src="js/components.js?v=11" defer></script>
+       ?v=12: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/media.js?v=12" defer></script>
+  <script src="js/desktop.js?v=12" defer></script>
+  <script src="js/app.js?v=12" defer></script>
+  <script src="js/camera.js?v=12" defer></script>
+  <script src="js/sync.js?v=12" defer></script>
+  <script src="js/video.js?v=12" defer></script>
+  <script src="js/coach.js?v=12" defer></script>
+  <script src="js/runlog.js?v=12" defer></script>
+  <script src="js/components.js?v=12" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -86,6 +86,9 @@
        downloaded (14 MB). media.js sets its file (and the poster). Not autoplay: video.js starts it from the
        "Start the experience" tap so it can play with sound. -->
   <video id="overlay-video" playsinline webkit-playsinline preload="auto" loop></video>
+  <!-- The card's video (second target). preload="none": it only downloads once
+       the card is seen (video.js). -->
+  <video id="card-video" playsinline webkit-playsinline preload="none" loop></video>
 
   <!-- 5. Friendly error message (camera blocked, no HTTPS, etc.). -->
   <div id="error-screen" class="screen hidden">
@@ -118,20 +121,37 @@
     <!-- MindAR moves the badge entity, so the camera stays still. -->
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- The raw tracked badge position from MindAR. Nothing is drawn here. -->
-    <a-entity id="badge-target" mindar-image-target="targetIndex: 0"></a-entity>
+    <!-- The raw tracked positions from MindAR, one per target in assets/targets.mind
+         (0 = badge, 1 = card; see TARGETS in app.js). Nothing is drawn here. -->
+    <a-entity id="badge-anchor" mindar-image-target="targetIndex: 0"></a-entity>
+    <a-entity id="card-anchor" mindar-image-target="targetIndex: 1"></a-entity>
 
-    <!-- What you see. follow-badge glides this toward the raw badge position
-         every frame (smooths jitter, holds through dropouts, fades in/out). -->
-    <a-entity id="overlay-holder" follow-badge="target: #badge-target">
-      <!-- Soft shadow just behind the overlay (components.js, soft-shadow). -->
-      <a-entity id="overlay-shadow" soft-shadow></a-entity>
-      <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape.
-           media.js sets the picture (src); rounded-corners crops any shape to 3:4. -->
-      <a-plane id="overlay"
-               width="1" height="1.3333"
-               material="shader: flat; transparent: true; opacity: 0"
-               rounded-corners></a-plane>
+    <!-- Stands for whichever target is in view, centred on it with 1 unit = its
+         width (components.js, active-target). -->
+    <a-entity id="tracked-target" active-target="anchors: #badge-anchor, #card-anchor"></a-entity>
+
+    <!-- What you see. follow-badge glides this toward the tracked position
+         every frame (smooths jitter, holds through dropouts, fades in/out).
+         One group per target; app.js shows the one in view. -->
+    <a-entity id="overlay-holder" follow-badge="target: #tracked-target">
+      <a-entity id="badge-media">
+        <!-- Soft shadow just behind the overlay (components.js, soft-shadow). -->
+        <a-entity soft-shadow="target: 0"></a-entity>
+        <!-- width 1 = the badge's width; rounded-corners sets the 3:4 shape.
+             media.js sets the picture (src); any shape is cropped to 3:4. -->
+        <a-plane id="overlay"
+                 width="1" height="1.3333"
+                 material="shader: flat; transparent: true; opacity: 0"
+                 rounded-corners="target: 0"></a-plane>
+      </a-entity>
+      <a-entity id="card-media" visible="false">
+        <a-entity soft-shadow="target: 1"></a-entity>
+        <!-- 1 wide, 0.631 tall (85.6 x 54 mm card). -->
+        <a-plane id="card-overlay"
+                 width="1" height="0.6308"
+                 material="shader: flat; transparent: true; opacity: 0"
+                 rounded-corners="target: 1"></a-plane>
+      </a-entity>
     </a-entity>
   </a-scene>
 </body>
