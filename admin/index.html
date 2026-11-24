@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Badge media · Admin</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="admin.css?v=9" />
+  <!-- github.js: API calls. prepare.js: photo/video processing. admin.js: the page. -->
+  <script src="github.js?v=9" defer></script>
+  <script src="prepare.js?v=9" defer></script>
+  <script src="admin.js?v=9" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Badge media</h1>
+    <a href="../" class="quiet">Open the badge page</a>
+    <button id="logout" class="quiet hidden">Log out</button>
+  </header>
+
+  <!-- Login: a GitHub token for this repo is the password. -->
+  <section id="login" class="card hidden">
+    <h2>Log in</h2>
+    <p>Paste your GitHub token for <b>jigarkpat3/ar-badge</b>. Only a token that can write to this repository can change anything.</p>
+    <form id="login-form">
+      <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required />
+      <label class="check"><input id="remember" type="checkbox" /> Remember on this device</label>
+      <button type="submit" id="login-button">Log in</button>
+      <p id="login-error" class="error"></p>
+    </form>
+    <details>
+      <summary>How to make a token</summary>
+      <ol>
+        <li>GitHub › your picture › <b>Settings</b> › <b>Developer settings</b> › <b>Personal access tokens</b> › <b>Fine-grained tokens</b> › <b>Generate new token</b>.</li>
+        <li>Name: “Badge admin”. Expiration: 90 days (or what you like).</li>
+        <li>Repository access: <b>Only select repositories</b> › <b>jigarkpat3/ar-badge</b>.</li>
+        <li>Permissions › Repository permissions › <b>Contents: Read and write</b> (Metadata: Read-only is added by itself).</li>
+        <li>Generate, copy it, paste it here.</li>
+      </ol>
+    </details>
+  </section>
+
+  <main id="app" class="hidden">
+    <p id="status" class="status hidden"></p>
+
+    <section class="card">
+      <h2>Add a video or photo</h2>
+      <input id="file" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v,image/*" />
+      <div id="preview" class="hidden">
+        <div class="preview-row">
+          <div>
+            <div class="label">Whole file (the dimmed part is cut off)</div>
+            <div id="stage"><div id="window"></div></div>
+          </div>
+          <div>
+            <div class="label">On the badge</div>
+            <canvas id="result" width="150" height="200"></canvas>
+          </div>
+        </div>
+        <div id="image-mode" class="hidden">
+          <label class="check"><input type="radio" name="mode" value="crop" checked /> Crop to fill the badge</label>
+          <label class="check"><input type="radio" name="mode" value="fit" /> Fit inside (adds black bars)</label>
+        </div>
+        <label id="focus-row" class="hidden">Crop position <input id="focus" type="range" min="0" max="100" value="50" /></label>
+        <p id="file-info" class="info"></p>
+        <ul id="warnings" class="warnings"></ul>
+        <label>Title <input id="title" type="text" maxlength="80" /></label>
+        <label class="check"><input id="make-live" type="checkbox" /> Make it live after uploading</label>
+        <button id="upload">Upload</button>
+        <div id="progress" class="hidden"><div id="bar"></div></div>
+      </div>
+      <p class="info">Videos: MP4 or MOV (H.264 is safest), up to 95 MB, best under 40 MB. Photos: any size up to 30 MB; saved as a 750 × 1000 JPEG.</p>
+    </section>
+
+    <section class="card">
+      <h2>Library</h2>
+      <div id="library"></div>
+    </section>
+  </main>
+</body>
+</html>

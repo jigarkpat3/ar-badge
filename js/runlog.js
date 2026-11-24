@@ -1,7 +1,7 @@
-// runlog.js: a small log of the first 20 seconds of every run, to find out
+// runlog.js: a small log of the first 20 seconds of a run (only with ?debug), to find out
 // why a run was wobbly (Jigar saw it once, on his first try).
-// It always records (it's cheap) and keeps this run and the one before in the
-// phone's storage, so even a run without ?debug can be read afterwards:
+// It keeps this run and the one before in the
+// phone's storage, to read afterwards:
 // open the page with ?debug and tap "Log".
 // Each second: tracking updates/s, frames/s, the slowest frame (ms), how much
 // the overlay shook (average move per frame, % of badge width), camera size,

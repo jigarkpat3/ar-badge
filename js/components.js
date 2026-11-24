@@ -172,6 +172,15 @@ AFRAME.registerComponent('rounded-corners', {
     mesh.material.transparent = true;
     mesh.material.needsUpdate = true;
     mesh.renderOrder = 1;   // always drawn after (on top of) the shadow
+    // Cut the picture to the badge's 3:4 shape (media.js). The alpha map has its
+    // own repeat/offset in three r158, so this doesn't move the rounded corners.
+    const map = mesh.material.map;
+    if (map && map.image) {
+      const img = map.image;
+      const c = overlayMedia.crop(img.videoWidth || img.naturalWidth || img.width, img.videoHeight || img.naturalHeight || img.height);
+      map.repeat.set(c.repeat[0], c.repeat[1]);
+      map.offset.set(c.offset[0], c.offset[1]);
+    }
   },
 });
 

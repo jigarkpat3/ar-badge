@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "rev": 1,
+  "updatedAt": "2026-11-24T06:30:00Z",
+  "live": "video-2026-11-24-sachu",
+  "items": [
+    {
+      "id": "video-2026-11-24-sachu",
+      "type": "video",
+      "file": "assets/overlay.mp4",
+      "poster": "assets/overlay-poster.jpg",
+      "title": "SĀCHU video",
+      "uploadedAt": "2026-11-24T05:15:00Z",
+      "w": 720,
+      "h": 960,
+      "sizeBytes": 14235716,
+      "duration": 58.7
+    },
+    {
+      "id": "image-2026-11-23-photo",
+      "type": "image",
+      "file": "assets/overlay.jpg",
+      "poster": "assets/overlay.jpg",
+      "title": "First photo",
+      "uploadedAt": "2026-11-23T22:19:00Z",
+      "w": 750,
+      "h": 1000,
+      "sizeBytes": 135866
+    }
+  ]
+}

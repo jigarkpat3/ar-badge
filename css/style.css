@@ -206,3 +206,20 @@ html, body {
 /* Anything with class "hidden" disappears. app.js adds and removes it. */
 .hidden { display: none !important; }
 
+
+/* Small, quiet "Admin" link on the start and desktop screens. */
+.admin-link {
+  position: absolute;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  right: 18px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+}
+
+/* "Open this on your phone" (desktop.js). Above the start screen. */
+#desktop-screen { z-index: 1001; }
+#desktop-qr { background: #fff; border-radius: 14px; padding: 6px; line-height: 0; min-width: 160px; min-height: 160px; }
+#desktop-qr svg { width: 200px; height: 200px; }
+#desktop-url { margin: 14px 0 22px; font-size: 14px; opacity: 0.6; }
+#desktop-try { color: #f5c542; font-size: 17px; }

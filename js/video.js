@@ -1,4 +1,5 @@
 // video.js: the video with sound on the badge.
+// (media.js picks the file. If the live item is a photo, all of this is skipped.)
 //
 // iPhone rules this file follows (WebKit's video policy for iOS):
 //  - A video may play WITH SOUND only if play() is called directly inside a
@@ -33,11 +34,13 @@ const overlayVideo = (function () {
   // Called in the first tap ("Tap to start"): start downloading now, so it's
   // ready by the time the framing step is done. (iPhones only preload after a tap.)
   function preload() {
+    if (overlayMedia.isImage()) return;   // photo on the badge: nothing to download
     video.load();
   }
 
   // Called FIRST in the "Start the experience" tap. Must stay synchronous.
   function startWithSound() {
+    if (overlayMedia.isImage()) return;   // photo: no video, no sound buttons
     started = true;
     video.muted = false;
     const attempt = video.play();   // no await before this line
@@ -101,6 +104,7 @@ const overlayVideo = (function () {
 
   // One line for the ?debug panel.
   function debugText() {
+    if (overlayMedia.isImage()) return `photo ${overlayMedia.item().file}`;
     const t = video.currentTime.toFixed(1), d = (video.duration || 0).toFixed(0);
     return `video ${t}/${d}s ${video.paused ? 'paused' : 'playing'} ${video.muted ? 'muted' : 'sound'} ` +
            `rs ${video.readyState} ${video.videoWidth}x${video.videoHeight}`;

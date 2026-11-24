@@ -150,8 +150,10 @@ function onSceneLoaded() {
   arSystem = sceneEl.systems['mindar-image-system'];
   useRealCameraFov(arSystem);   // camera.js: fixes the skew on tilted badges
   if (TUNING.sync) cameraSync = syncCameraView(arSystem);   // sync.js: fixes the lag
-  startButton.disabled = false;
-  startButton.textContent = 'Tap to start';
+  overlayMedia.ready.then(() => {   // media.js: the live video or photo is chosen
+    startButton.disabled = false;
+    startButton.textContent = 'Tap to start';
+  });
 }
 if (sceneEl.hasLoaded) onSceneLoaded();
 else sceneEl.addEventListener('loaded', onSceneLoaded);
@@ -166,7 +168,7 @@ startButton.addEventListener('click', () => {
   hide(startScreen);
   show(loadingScreen);   // dark cover until the camera view is sized (see arReady)
   overlayVideo.preload();   // video.js: start downloading the video during framing
-  runLog.start();           // runlog.js: first-20-seconds log (see ?debug)
+  if (urlParams.has('debug')) runLog.start();   // runlog.js: first-20-seconds log, only with ?debug
   startAR();
 });
 
