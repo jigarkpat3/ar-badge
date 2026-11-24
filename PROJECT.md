@@ -21,7 +21,7 @@ Point an iPhone at an event ID badge and have media appear locked onto it. Phase
 - 2026-11-23: Host for free so he can test by opening a link.
 - 2026-11-23: Repo created at https://github.com/jigarkpat3/ar-badge (public, so free GitHub Pages works later). Pushed with the box's gh CLI, which is logged in as jigarkpat3. Cursor cloud agents are linked as jigarkpat, so they can't push to it unless jigarkpat is added as a collaborator.
 
-## Proposed plan (waiting for Jigar's OK)
+## Plan (approved 2026-11-23)
 Features in order:
 1. Badge target: pick or make the badge image, then compile it to targets.mind with MindAR's online compiler.
 2. Start screen: a "Tap to start" button that starts the camera.
@@ -52,13 +52,14 @@ ar-badge/
 - Requirements gathered.
 - Reference video reviewed.
 - GitHub repo created with plan + skeleton.
+- Feature 1 (badge target): badge photo flattened to assets/badge.jpg, compiled to assets/targets.mind with mind-ar 1.2.5 (2026-11-23).
 
 ## Next
-- Get the badge image.
+- Features 2 + 3: "Tap to start" screen and photo overlay on the badge (plane 1 wide x 1.3333 tall).
 
 ## Open questions
-- Does he have a real badge design, or should we make a test one?
 - Weekly check-in: declined 2026-11-23.
 
 ## Assets
-None yet.
+- assets/badge.jpg: Jigar's own event badge (SĀCHU SĀCHU SĀCHU, North American Activities Meeting 2026), from his phone photo. Personal use. Perspective-corrected and cropped to 750x1000. Measured aspect H/W 1.335, saved at exactly 4:3 (1.3333).
+- assets/targets.mind: compiled from badge.jpg with mind-ar 1.2.5's compiler (npm package, run in Node, .mind format v2). Must be loaded with mind-ar@1.2.5. About 1,900 detection points over 10 scales, 37 + 24 tracking points. Strongest on the logo, SĀCHU text and name. Weak on the plain black top band and the right side. Glossy badge, so watch for glare.
