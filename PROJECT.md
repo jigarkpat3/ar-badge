@@ -157,3 +157,4 @@ ar-badge/
 - 2026-11-24: Apple Card real results (manual crop, mind-ar 1.2.5): detection 471 pts [76,78,61,64,61,48,33,32,18] vs badge 1902; tracking 4+1 vs badge 37+24; points only on the two logos. Verdict: weak. Video 1024x576 16:9, 66.9s, 5.8MB, H.264 High + HE-AACv2, fine for iPhone as-is. Files in targets/. Awaiting Jigar decision.
 
 - 2026-11-24 12:25 PM: Jigar asked to delete the Goldman Sachs/Apple Card target and Interstellar video and return to the SACHU + NC27 setup (0cd968f, ?v=11). Restored all app files from 0cd968f; card files removed (still in git history at 452836f/9374750).
+- 2026-11-24 3:15 PM: Added YouTube kirtan "Sant Mahima" (BAPS Kirtan Channel, youtu.be/WFEtQCRMSU4) cropped 3:4 subject-centered, outro trimmed (146s, 23.9MB), poster at 2s; made live. Third-party video, personal use, public repo. Live link https://jigarkpat3.github.io/ar-badge/?v=12

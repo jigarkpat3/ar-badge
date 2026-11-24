@@ -1,9 +1,21 @@
 {
   "version": 1,
-  "rev": 6,
-  "updatedAt": "2026-11-24T07:00:25.518Z",
-  "live": "image-2026-11-23-photo",
+  "rev": 7,
+  "updatedAt": "2026-11-24T20:08:38.505Z",
+  "live": "video-20261124-200838-yt1",
   "items": [
+    {
+      "id": "video-20261124-200838-yt1",
+      "type": "video",
+      "file": "media/video-20261124-200838-yt1.mp4",
+      "poster": "media/video-20261124-200838-yt1-poster.jpg",
+      "w": 720,
+      "h": 960,
+      "sizeBytes": 25590173,
+      "duration": 146.07,
+      "title": "Sant Mahima kirtan (YouTube)",
+      "uploadedAt": "2026-11-24T20:08:38.505Z"
+    },
     {
       "id": "video-2026-11-24-sachu",
       "type": "video",
