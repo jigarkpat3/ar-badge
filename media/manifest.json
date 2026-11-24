@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "rev": 3,
-  "updatedAt": "2026-11-24T06:37:17.695Z",
+  "rev": 4,
+  "updatedAt": "2026-11-24T06:38:05.259Z",
   "live": "video-2026-11-24-sachu",
   "items": [
     {
@@ -12,7 +12,7 @@
       "h": 900,
       "sizeBytes": 110468,
       "poster": "media/image-20261124-063633-axn.jpg",
-      "title": "Test photo (delete me)",
+      "title": "Renamed test",
       "uploadedAt": "2026-11-24T06:36:33.614Z"
     },
     {
