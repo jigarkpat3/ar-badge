@@ -1,20 +1,9 @@
 {
   "version": 1,
-  "rev": 4,
-  "updatedAt": "2026-11-24T06:38:05.259Z",
+  "rev": 5,
+  "updatedAt": "2026-11-24T06:38:07.899Z",
   "live": "video-2026-11-24-sachu",
   "items": [
-    {
-      "id": "image-20261124-063633-axn",
-      "type": "image",
-      "file": "media/image-20261124-063633-axn.jpg",
-      "w": 675,
-      "h": 900,
-      "sizeBytes": 110468,
-      "poster": "media/image-20261124-063633-axn.jpg",
-      "title": "Renamed test",
-      "uploadedAt": "2026-11-24T06:36:33.614Z"
-    },
     {
       "id": "video-2026-11-24-sachu",
       "type": "video",
