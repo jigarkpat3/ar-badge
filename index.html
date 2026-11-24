@@ -5,23 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=11" />
+  <link rel="stylesheet" href="css/style.css?v=13" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=11: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/media.js?v=11" defer></script>
-  <script src="js/desktop.js?v=11" defer></script>
-  <script src="js/app.js?v=11" defer></script>
-  <script src="js/camera.js?v=11" defer></script>
-  <script src="js/sync.js?v=11" defer></script>
-  <script src="js/video.js?v=11" defer></script>
-  <script src="js/coach.js?v=11" defer></script>
-  <script src="js/runlog.js?v=11" defer></script>
-  <script src="js/components.js?v=11" defer></script>
+       ?v=13: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/media.js?v=13" defer></script>
+  <script src="js/desktop.js?v=13" defer></script>
+  <script src="js/app.js?v=13" defer></script>
+  <script src="js/camera.js?v=13" defer></script>
+  <script src="js/sync.js?v=13" defer></script>
+  <script src="js/video.js?v=13" defer></script>
+  <script src="js/coach.js?v=13" defer></script>
+  <script src="js/runlog.js?v=13" defer></script>
+  <script src="js/pose-filter.js?v=13" defer></script>
+  <script src="js/components.js?v=13" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -121,8 +122,8 @@
     <!-- The raw tracked badge position from MindAR. Nothing is drawn here. -->
     <a-entity id="badge-target" mindar-image-target="targetIndex: 0"></a-entity>
 
-    <!-- What you see. follow-badge glides this toward the raw badge position
-         every frame (smooths jitter, holds through dropouts, fades in/out). -->
+    <!-- What you see. follow-badge keeps this on the badge (smoothing in
+         pose-filter.js), holds it through dropouts and fades it in/out. -->
     <a-entity id="overlay-holder" follow-badge="target: #badge-target">
       <!-- Soft shadow just behind the overlay (components.js, soft-shadow). -->
       <a-entity id="overlay-shadow" soft-shadow></a-entity>

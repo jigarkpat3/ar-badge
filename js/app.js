@@ -7,28 +7,41 @@
 // TUNING: every knob in one place. Change a number, push, reload the phone.
 // ---------------------------------------------------------------------------
 const TUNING = {
-  // MindAR's own smoothing (a "One Euro" filter on the raw pose).
-  //   filterMinCF: smoothing when still. Lower = steadier but laggier. 0.001 = 1 Hz.
-  //   filterBeta:  how fast smoothing switches off when moving. Higher = less lag.
-  //   Round 4: beta 30 (was 10): smoothing switches off sooner when moving.
+  // MindAR's own smoothing is switched OFF (round 14). It's a "One Euro"
+  // filter on the 16 raw matrix numbers, each with its own strength, which
+  // bent the rotation (the overlay swayed, tilted and pulsed in size). In
+  // mind-ar 1.2.5 the cutoff is per millisecond (0.001 = 1 Hz), so 1000 means
+  // "follow every pose" and beta 0 adds nothing. All smoothing is now in
+  // TUNING.filter below (one stage).
   mindar: {
-    filterMinCF: 0.001,
-    filterBeta: 30,
+    filterMinCF: 1000,
+    filterBeta: 0,
     warmupTolerance: 5,  // frames the badge must be seen before "found" (MindAR default 5)
     missTolerance: 5,    // frames the badge can be missed before "lost" (MindAR default 5)
   },
 
-  // Our extra smoothing on top (components.js, follow-badge).
+  // The one smoothing stage (pose-filter.js, used by follow-badge in
+  // components.js), once per new MindAR pose. Round 14, tuned in
+  // pwtest/sim3.mjs against a tracker-noise model fitted to Jigar's
+  // shake recording. Cutoffs in Hz: lower = steadier but slower.
+  filter: {
+    minCutoff: 1.0,        // position on screen when still
+    beta: 15,              //   + this much per badge width/s of movement
+    minCutoffDepth: 0.3,   // size (distance) when still: the noisiest part
+    minCutoffRot: 1.5,     // rotation/tilt when still
+    betaRot: 6,            //   + this much per radian/s of turning
+    dCutoff: 1.0,          // how smoothed the speed estimate is
+    gapFree: 0.02,         // if the badge is more than this far from the photo (badge widths)...
+    gapGain: 600,          //   ...open the filter by this much per extra badge width (smooth catch-up)
+    gapFreeRot: 1.5,       // same for rotation, degrees
+    gapGainRot: 40,        //   per extra radian
+    jumpDeg: 8,            // a pose that suddenly turns more than this (a glare flip)...
+    jumpScale: 0.05,       //   ...or changes size by more than ~5% in one frame...
+    maxRejects: 2,         //   ...is ignored for up to this many frames in a row
+  },
+
+  // Showing and hiding the photo (components.js, follow-badge).
   follow: {
-    // Video round 2: calmer when still (about half the shake of round 4 in the
-    // simulation) with the same trail when moving. Small slow drifts can now
-    // sit about 1% off before it catches up; the overscan below hides that.
-    restSmoothTime: 0.4,   // seconds; used when the badge is still (hides jitter)
-    fastSmoothTime: 0,     // seconds; used when it moves (0 = no delay at all)
-    restMotion: 0.012,     // below this much difference we count as "still"
-    fastMotion: 0.025,     // above this we count as "moving fast"
-                           // (both in badge widths for position, radians for angle)
-    depthWeight: 0.3,      // count distance changes less (they're the noisiest)
     holdMs: 500,           // keep showing the photo this long after the badge is lost
     fadeInMs: 200,
     fadeOutMs: 250,
@@ -334,7 +347,7 @@ if (urlParams.has('debug')) {
     const v = arSystem && arSystem.video, c = arSystem && arSystem.controller;
     text.textContent = [
       `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
-      `state ${follow().state}  restarts ${restarts}`,
+      `state ${follow().state}  restarts ${restarts}  jumps dropped ${follow().filter.stats.dropped}/${follow().filter.stats.poses}`,
       experienceStarted ? 'phase experience'
         : `phase framing  found ${foundAt ? Math.round(performance.now() - foundAt) : 0} ms  healthy ${healthySince ? Math.round(performance.now() - healthySince) : 0}/${TUNING.framing.steadyMs} ms`,
       overlayVideo.debugText(),

@@ -1,5 +1,5 @@
-// components.js: two small A-Frame components used in index.html.
-//   follow-badge    makes the photo glide smoothly after the tracked badge
+// components.js: the A-Frame components used in index.html.
+//   follow-badge    keeps the photo on the tracked badge (smoothing in pose-filter.js)
 //   rounded-corners rounds the photo's corners to match the badge
 // Their tuning numbers live in TUNING at the top of app.js.
 
@@ -18,7 +18,10 @@ AFRAME.registerComponent('follow-badge', {
     this.rawPos = new Vector3();
     this.rawRot = new Quaternion();
     this.rawScale = new Vector3();
-    this.delta = new Vector3();
+    // The one smoothing stage (pose-filter.js, TUNING.filter). It runs once per
+    // new MindAR pose; between poses the photo stays where it is.
+    this.filter = new PoseFilter(AFRAME.THREE, TUNING.filter);
+    this.lastMatrix = null;   // MindAR makes a new matrix object for every new pose
 
     // 'hidden' -> 'tracking' -> (badge lost) 'holding' -> 'fading' -> 'hidden'
     this.state = 'hidden';
@@ -36,22 +39,19 @@ AFRAME.registerComponent('follow-badge', {
     const T = TUNING.follow;
     const anchor = this.data.target.object3D;
     const me = this.el.object3D;
-    const dt = Math.min(dtMs, 100) / 1000;  // seconds since last frame (capped)
 
     if (anchor.visible) {
       // MindAR found the badge. Its anchor matrix holds the raw pose.
-      anchor.matrix.decompose(this.rawPos, this.rawRot, this.rawScale);
-      // Keep the photo's shape exactly 3:4: one size for both directions.
-      // (MindAR's filter can leave slightly different x/y sizes while moving.)
-      this.rawScale.setScalar((this.rawScale.x + this.rawScale.y) / 2);
-
-      if (this.state === 'hidden') {
+      if (anchor.matrix !== this.lastMatrix) {   // a new pose (not just a new screen frame)
+        this.lastMatrix = anchor.matrix;
+        anchor.matrix.decompose(this.rawPos, this.rawRot, this.rawScale);
+        // One size for both directions keeps the photo's shape exactly 3:4.
+        const size = (this.rawScale.x + this.rawScale.y) / 2;
         // Fresh start: jump straight to the badge (no gliding in from nowhere).
-        me.position.copy(this.rawPos);
-        me.quaternion.copy(this.rawRot);
-        me.scale.copy(this.rawScale);
-      } else {
-        this.glideToward(dt, T);
+        // After a short dropout (holding), carry on smoothly from where it is.
+        if (this.state === 'hidden') this.filter.reset();
+        this.filter.update(time / 1000, this.rawPos, this.rawRot, size, me.position, me.quaternion);
+        me.scale.setScalar(size);
       }
       this.setState('tracking');
       this.lastSeen = time;
@@ -68,30 +68,6 @@ AFRAME.registerComponent('follow-badge', {
 
     me.visible = this.opacity > 0;
     this.setOpacity(this.opacity * (this.seeThrough ? 0.5 : 1));
-  },
-
-  // Adaptive smoothing: tiny differences (hand held still, jitter) are
-  // smoothed heavily; big differences (badge moving) are followed quickly.
-  glideToward: function (dt, T) {
-    const me = this.el.object3D;
-    const badgeWidth = this.rawScale.x;  // 1 badge width in scene units (same for y, see tick)
-
-    // How far off are we? Position error in badge widths (depth counts less,
-    // because MindAR's distance estimate is the noisiest part) and angle in radians.
-    this.delta.subVectors(this.rawPos, me.position);
-    const posErr = Math.hypot(this.delta.x, this.delta.y, this.delta.z * T.depthWeight) / badgeWidth;
-    const angErr = me.quaternion.angleTo(this.rawRot);
-    const motion = Math.max(posErr, angErr);
-
-    // 0 = at rest, 1 = moving fast. Pick a smoothing time in between.
-    const k = clamp01((motion - T.restMotion) / (T.fastMotion - T.restMotion));
-    const smoothTime = T.restSmoothTime + (T.fastSmoothTime - T.restSmoothTime) * k;
-
-    // Exponential smoothing that behaves the same at 30 or 60 frames per second.
-    const a = smoothTime > 0 ? 1 - Math.exp(-dt / smoothTime) : 1;   // 0 = jump straight there
-    me.position.lerp(this.rawPos, a);
-    me.quaternion.slerp(this.rawRot, a);
-    me.scale.lerp(this.rawScale, a);
   },
 
   // Change state and tell the page (app.js shows the hint only when 'hidden').
