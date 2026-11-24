@@ -58,7 +58,7 @@ ar-badge/
 
 ## Open questions
 - Does he have a real badge design, or should we make a test one?
-- Weekly check-in: offered, waiting on his answer.
+- Weekly check-in: declined 2026-11-23.
 
 ## Assets
 None yet.
