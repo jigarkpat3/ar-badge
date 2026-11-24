@@ -40,6 +40,8 @@ Point an iPhone at an event ID badge and have media appear locked onto it. Phase
 - 2026-11-24: Lag fix (js/sync.js). Show the frame the pose came from. MindAR 1.2.5 copies each frame it analyses into controller.inputLoader.context.canvas (input-loader.js), and its processing loop (controller.js processVideo) reports "processDone" right after the pose for that frame. sync.js wraps the controller's onUpdate (hooked in _resize, like the FOV fix). On processDone it copies that canvas onto our own canvas, which sits exactly over MindAR's video (same CSS, z-index -1), so the picture and the photo update together. It runs only while the photo is on screen; while searching, the live video shows, because searching is slower than tracking. It skips frames where tracking failed, because MindAR keeps the last good pose for those, so we keep the last good picture too. If MindAR's frame is rotated relative to the video, we fall back to live. Cost: one canvas copy per analysed frame. Trade-off: the whole camera view is now about 0.1 s behind reality, the way ARKit apps work. Switch it off with ?sync=0. Headless moving-badge test (lagtest.mjs, fake camera with a frame-number barcode, trail = worst corner gap vs the badge in the picture on screen, % of badge width, median / 95th percentile): slow sway (peak 1.9 widths/s) v3 3.1-5.9 / 14-23, v4 1.0-1.3 / 2.7-4.5; fast sway (peak 3.8 widths/s) v3 22-23 / 42-46, v4 1.2-1.3 / 3.9-6.8; 720x1280 camera, fast: v3 33 / 67, v4 1.3 / 3.4. Rare multi-frame jumps happen when MindAR itself loses the pose under very fast motion (with sync on or off, and in v3).
 - 2026-11-24: Retune now that the pipeline lag is gone. MindAR filterBeta 10 -> 30 (minCF stays 0.001). follow-badge: restSmoothTime 0.12 -> 0.22, fastSmoothTime 0.01 -> 0 (no delay when moving), restMotion 0.006 -> 0.008, fastMotion 0.025. Grid search in the simulation, keeping rest jitter at or below v3: rest jitter 0.10 -> 0.064% of width per frame (35% less), smoothing trail on fast slides 3.2 -> 1.3% and wobbles 2.7 -> 1.8%. Real-camera noise can't be reproduced headless (a still synthetic badge gives zero jitter), so the rest-jitter gain needs checking on the phone.
 
+- 2026-11-24 (round 5, approved by Jigar after "it's much better"): Framing screen between the camera starting and the photo. Flow: tap 1 starts the camera; a see-through framing screen shows a badge-shaped 3:4 outline (about 74% of the screen width, the rest dimmed) and tips (hold the badge flat, fill the outline, good light, avoid glare). MindAR tracks in the background, and the outline turns green on targetFound. "Start the experience" unlocks after TUNING.framing.steadyMs (1500 ms) of unbroken tracking. targetLost before then (or while waiting to be tapped) locks it again and restarts the wait. Tap 2 fades the photo in. Why: the first overlay frame used to appear before the filters had settled, so it could swing in skewed, and people didn't know how to hold the badge. During framing, follow-badge keeps following the badge with its photo invisible (new `revealed` flag), so when the button unlocks the smoothing has settled and the photo fades in already in place. Tap 2's handler is synchronous with a marked spot for video.play(), so the video can play with sound on iOS. After tap 2, losing the badge keeps the hold, fade and hint behaviour and never returns to framing. The hint shows only in the experience. Frame-sync canvas: off during framing (live view), on only while the photo is visible. With no photo to line up, the live view is the newest frame and the smoothest, so framing feels responsive. ?debug adds "phase framing steady N/1500 ms" or "phase experience"; ?sync=0 still works. Safe areas: max(..., env(safe-area-inset-*)) padding; the button is at least 56 px tall. Headless (controllable fake camera): searching, found+locked, lost before unlock re-locks, unlocked exactly 1500 ms after found, photo stays at opacity 0 the whole time before the tap, fades in after it, hold -> fade -> hint on loss without the framing screen, back on re-find, no console errors.
+
 ## Plan (approved 2026-11-23)
 Features in order:
 1. Badge target: pick or make the badge image, then compile it to targets.mind with MindAR's online compiler.
@@ -55,7 +57,7 @@ Files:
 ```
 ar-badge/
   index.html        page, start button, A-Frame scene
-  js/app.js         TUNING values, start, found/lost events, debug panel, media control
+  js/app.js         TUNING values, start, framing screen, found/lost events, debug panel, media control
   js/camera.js      sharper/faster camera request, real camera FOV, frame-size check
   js/sync.js        shows the camera frame the tracking used (lag fix, ?sync=0 to turn off)
   js/components.js  follow-badge (smoothing, hold, fade) and rounded-corners
@@ -80,13 +82,14 @@ ar-badge/
 - Feature 4 (tracking polish) and fit/startup fixes (2026-11-23): smoothing (MindAR filter + follow-badge), hold 500 ms through dropouts, fade in/out, rounded corners, dark startup cover, ?debug panel (fps, tracking rate, state, camera/input/screen sizes, See-through button). Headless: fit within 0.3%, found -> lost (held 491 ms, faded 234 ms) -> found again, no console errors.
 - Feature 5 (hosting): GitHub Pages live (see Hosting).
 
+- Round 5 (2026-11-24): framing screen (outline, tips, steady-tracking unlock), photo only after "Start the experience", hook for video.play() in that tap. Cache-bust ?v=5.
 - Round 4 (2026-11-24): frame-synced camera view (lag fix), camera size request that works both ways round + 60 fps request, retuned smoothing, panel shows camera tries/fps and sync/analyse time. Cache-bust ?v=4.
 - Round 3 (2026-11-23): real camera FOV (skew fix), 1280x720 camera request, frame-size settle + restart, hint only when the photo is hidden, uniform scale in follow-badge, faster debug panel (asked/got size, fov, restarts). Cache-bust ?v=3.
 
 ## Next
-- Jigar re-tests v4 on the iPhone with ?debug: check "camera" now reads 720x1280 (and @60fps), "sync on" while the photo shows, and the analyse ms. Slide and tilt the badge quickly: the photo should stay on the card. Compare with ?sync=0&debug for the old behaviour. Check the photo is steady when still, and check heat and tracking/s at 720x1280.
-- If 720x1280 makes tracking too slow or hot, set TUNING.camera.longSide/shortSide back to 640/480; sync still removes the trail.
-- Then feature 6: video with sound.
+- Jigar tests v5 on the iPhone: no photo before the button; outline green when the badge is found; button unlocks after about 1.5 s held steady and locks again if the badge leaves; the photo fades in already in place (no skewed swing); losing the badge mid-experience shows the hint but not the framing screen. Say whether 1.5 s feels right (TUNING.framing.steadyMs) and whether the outline size matches a comfortable holding distance.
+- Still from round 4: confirm the panel shows camera 720x1280 (@60fps) and "sync on" during the experience.
+- Then feature 6: video with sound (play() goes in the "Start the experience" tap handler).
 
 ## Open questions
 - Weekly check-in: declined 2026-11-23.

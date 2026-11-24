@@ -1,6 +1,7 @@
-// app.js: tuning values, the start button, the hint, errors and the debug panel.
-// MindAR does the tracking; camera.js fixes how it uses the camera;
-// components.js makes the photo follow it smoothly.
+// app.js: tuning values, the start button, the framing screen, the hint,
+// errors and the debug panel. MindAR does the tracking; camera.js fixes how it
+// uses the camera; sync.js keeps the picture in step; components.js makes the
+// photo follow the badge smoothly.
 
 // ---------------------------------------------------------------------------
 // TUNING: every knob in one place. Change a number, push, reload the phone.
@@ -46,6 +47,14 @@ const TUNING = {
   // (sync.js). Compare with the old behaviour by adding ?sync=0 to the address.
   sync: true,
 
+  // Framing screen (before the experience starts).
+  framing: {
+    steadyMs: 1500,  // the badge must be tracked this long without a break before
+                     // "Start the experience" unlocks. This also gives both
+                     // smoothing filters time to settle, so the first photo frame
+                     // sits right on the badge instead of swinging in skewed.
+  },
+
   cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
 };
 
@@ -63,6 +72,11 @@ const loadingScreen = document.querySelector('#loading-screen');
 const hint          = document.querySelector('#hint');
 const errorScreen   = document.querySelector('#error-screen');
 const errorText     = document.querySelector('#error-text');
+const framing       = document.querySelector('#framing');
+const framingStatus = document.querySelector('#framing-status');
+const experienceButton = document.querySelector('#experience-button');
+const badgeEl       = document.querySelector('#badge-target');
+const follow        = () => holderEl.components['follow-badge'];
 
 // Hand MindAR its settings (this runs before A-Frame builds the scene).
 // autoStart:false = we start it from the tap. ui...:no = we use our own screens.
@@ -76,7 +90,7 @@ const show = (el) => el.classList.remove('hidden');
 const hide = (el) => el.classList.add('hidden');
 
 function showError(message) {
-  [startScreen, loadingScreen, hint].forEach(hide);
+  [startScreen, loadingScreen, hint, framing].forEach(hide);
   errorText.textContent = message;
   show(errorScreen);
 }
@@ -93,8 +107,8 @@ function onSceneLoaded() {
 if (sceneEl.hasLoaded) onSceneLoaded();
 else sceneEl.addEventListener('loaded', onSceneLoaded);
 
-// 2. The tap. iPhone Safari only allows the camera and, later, video WITH
-//    SOUND to start from a real tap, so keep this handler synchronous.
+// 2. First tap: start the camera. iPhone Safari only allows the camera from a
+//    real tap. (The video with sound starts on the SECOND tap, see step 4.)
 startButton.addEventListener('click', () => {
   if (!window.isSecureContext) {   // camera needs https:// (or localhost)
     showError('This page needs to be opened with https:// for the camera to work.');
@@ -102,11 +116,6 @@ startButton.addEventListener('click', () => {
   }
   hide(startScreen);
   show(loadingScreen);   // dark cover until the camera view is sized (see arReady)
-
-  // Phase 2 (video): unlock the video here, in the same tap, e.g.
-  //   const video = document.querySelector('#overlay-video');
-  //   video.play().then(() => video.pause());
-
   startAR();
 });
 
@@ -131,10 +140,11 @@ function restartAR() {
   console.warn('Camera size changed, restarting AR');
   arIsReady = false;
   show(loadingScreen);
+  lockFraming();
   updateHint();
   arSystem.stop();
   // Tell the badge entity it's lost, so no old position lingers (MindAR's own method).
-  document.querySelector('#badge-target').components['mindar-image-target'].updateWorldMatrix(null);
+  badgeEl.components['mindar-image-target'].updateWorldMatrix(null);
   startAR();
 }
 
@@ -151,6 +161,7 @@ sceneEl.addEventListener('arReady', () => {
   // Wait two frames so the re-fit is on screen, then lift the cover.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     hide(loadingScreen);
+    if (!experienceStarted) show(framing);   // step 3: line the badge up
     updateHint();
   }));
 });
@@ -161,19 +172,68 @@ sceneEl.addEventListener('arError', () => {
             'then tap Try again.');
 });
 
+// 3. Framing screen. The outline turns green when MindAR finds the badge.
+//    After TUNING.framing.steadyMs of tracking without a break, the button
+//    unlocks. If the badge is lost first (or while waiting to be tapped), it
+//    locks again and the wait starts over.
+let experienceStarted = false;
+let steadyTimer = null;
+let foundAt = 0;   // when the current unbroken stretch of tracking began (for ?debug)
+
+badgeEl.addEventListener('targetFound', () => {
+  if (experienceStarted) return;
+  framing.classList.add('found');
+  framingStatus.textContent = 'Badge found, hold steady…';
+  foundAt = performance.now();
+  clearTimeout(steadyTimer);
+  steadyTimer = setTimeout(() => {
+    experienceButton.disabled = false;
+    framingStatus.textContent = 'Ready!';
+  }, TUNING.framing.steadyMs);
+});
+badgeEl.addEventListener('targetLost', () => { if (!experienceStarted) lockFraming(); });
+
+function lockFraming() {
+  clearTimeout(steadyTimer);
+  foundAt = 0;
+  framing.classList.remove('found');
+  framingStatus.textContent = 'Looking for your badge…';
+  experienceButton.disabled = true;
+}
+
+// 4. Second tap: start the experience. The photo has been following the
+//    badge invisibly all along, so it fades in already in the right place.
+//    Keep this handler synchronous: iPhone Safari only lets a video play WITH
+//    SOUND if play() is called directly inside a tap.
+experienceButton.addEventListener('click', () => {
+  // Phase 2 (video) goes HERE, first thing, before anything async, e.g.
+  //   const video = document.querySelector('#overlay-video');
+  //   video.play();
+  experienceStarted = true;
+  clearTimeout(steadyTimer);
+  hide(framing);
+  follow().revealed = true;   // follow-badge fades the photo in
+  updateSync();
+  updateHint();
+});
+
+// 5. During the experience. If the badge is lost, the photo holds, fades and the
+//    hint shows (all as before); we wait for the badge, no going back to framing.
 // The hint follows the photo, not MindAR's raw found/lost events: it shows
 // only once the photo has fully faded out, and hides as soon as it comes back.
 function updateHint() {
-  const state = holderEl.components['follow-badge'].state;
-  if (arIsReady && state === 'hidden') show(hint);
+  if (arIsReady && experienceStarted && follow().state === 'hidden') show(hint);
   else hide(hint);
 }
 holderEl.addEventListener('overlaystate', updateHint);
 
-// The synced camera picture is used while the photo is on screen (sync.js).
-holderEl.addEventListener('overlaystate', () => {
-  if (cameraSync) cameraSync.setWanted(holderEl.components['follow-badge'].state !== 'hidden');
-});
+// The synced camera picture (sync.js) is used only while the photo is on
+// screen. While framing there's no photo to line up, so the live view (newest
+// frame, smoothest) is better there.
+function updateSync() {
+  if (cameraSync) cameraSync.setWanted(experienceStarted && follow().state !== 'hidden');
+}
+holderEl.addEventListener('overlaystate', updateSync);
 
 // If the target file fails to load, MindAR doesn't fire arError, so catch it here.
 window.addEventListener('unhandledrejection', (event) => {
@@ -186,7 +246,6 @@ window.addEventListener('unhandledrejection', (event) => {
 if (urlParams.has('debug')) {
   const panel = document.querySelector('#debug');
   const text = document.querySelector('#debug-text');
-  const follow = () => holderEl.components['follow-badge'];
   show(panel);
 
   // Count frames and tracking updates; report the last second, 4 times a second.
@@ -194,7 +253,7 @@ if (urlParams.has('debug')) {
   const lastSecond = (list) => { const now = performance.now(); while (list.length && list[0] < now - 1000) list.shift(); return list.length; };
   const countFrame = () => { frameTimes.push(performance.now()); requestAnimationFrame(countFrame); };
   requestAnimationFrame(countFrame);
-  document.querySelector('#badge-target').addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
+  badgeEl.addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
 
   document.querySelector('#debug-seethrough').addEventListener('click', () => {
     follow().seeThrough = !follow().seeThrough;   // half-transparent photo, to check the fit
@@ -205,6 +264,8 @@ if (urlParams.has('debug')) {
     text.textContent = [
       `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
       `state ${follow().state}  restarts ${restarts}`,
+      experienceStarted ? 'phase experience'
+        : `phase framing  steady ${foundAt ? Math.round(performance.now() - foundAt) : 0}/${TUNING.framing.steadyMs} ms`,
       `camera ${v ? v.videoWidth + 'x' + v.videoHeight : '-'} @${cameraReport.fps}fps  tries ${cameraReport.tries.join('>') || '-'}`,
       `input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}  fov ${TUNING.camera.fovDeg}`,
       cameraSync ? `sync ${cameraSync.stats.active ? 'on' : 'standby'}  analyse ${Math.round(cameraSync.stats.lastAnalyseMs)} ms` : 'sync off (?sync=0)',

@@ -25,6 +25,10 @@ AFRAME.registerComponent('follow-badge', {
     this.lastSeen = 0;      // time (ms) we last had a real badge position
     this.opacity = 0;       // 0 = invisible, 1 = fully visible
     this.seeThrough = false; // debug: show the photo at half opacity
+    // false during the framing screen: the photo keeps following the badge
+    // (so its smoothing settles) but stays invisible. app.js sets it to true
+    // when "Start the experience" is tapped.
+    this.revealed = false;
     this.el.object3D.visible = false;
   },
 
@@ -57,7 +61,7 @@ AFRAME.registerComponent('follow-badge', {
     }
 
     // Fade: move opacity toward 1 (tracking/holding) or 0 (fading).
-    const wantVisible = this.state === 'tracking' || this.state === 'holding';
+    const wantVisible = this.revealed && (this.state === 'tracking' || this.state === 'holding');
     const step = dtMs / (wantVisible ? T.fadeInMs : T.fadeOutMs);
     this.opacity = clamp01(this.opacity + (wantVisible ? step : -step));
     if (this.opacity === 0 && this.state === 'fading') this.setState('hidden');

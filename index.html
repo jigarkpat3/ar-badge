@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=4" />
+  <link rel="stylesheet" href="css/style.css?v=5" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=4: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/app.js?v=4" defer></script>
-  <script src="js/camera.js?v=4" defer></script>
-  <script src="js/sync.js?v=4" defer></script>
-  <script src="js/components.js?v=4" defer></script>
+       ?v=5: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=5" defer></script>
+  <script src="js/camera.js?v=5" defer></script>
+  <script src="js/sync.js?v=5" defer></script>
+  <script src="js/components.js?v=5" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -32,17 +32,34 @@
     <p>Starting camera…</p>
   </div>
 
-  <!-- 3. Hint shown while the badge isn't in view. -->
+  <!-- 3. Framing screen: shown over the camera after it starts. A badge-shaped
+       outline to line the badge up with; it turns green when the badge is found.
+       The button unlocks after a moment of steady tracking (app.js). -->
+  <div id="framing" class="hidden">
+    <p id="framing-status">Looking for your badge…</p>
+    <div id="framing-outline"></div>
+    <div id="framing-bottom">
+      <ul id="framing-tips">
+        <li>Hold the badge flat</li>
+        <li>Fill the outline</li>
+        <li>Good light</li>
+        <li>Avoid glare</li>
+      </ul>
+      <button id="experience-button" disabled>Start the experience</button>
+    </div>
+  </div>
+
+  <!-- 4. Hint shown while the badge isn't in view (during the experience). -->
   <div id="hint" class="hidden">Point your camera at the badge</div>
 
-  <!-- 4. Friendly error message (camera blocked, no HTTPS, etc.). -->
+  <!-- 5. Friendly error message (camera blocked, no HTTPS, etc.). -->
   <div id="error-screen" class="screen hidden">
     <h1>Camera not available</h1>
     <p id="error-text"></p>
     <button onclick="location.reload()">Try again</button>
   </div>
 
-  <!-- 5. Debug panel, only shown when the address ends in ?debug -->
+  <!-- 6. Debug panel, only shown when the address ends in ?debug -->
   <div id="debug" class="hidden">
     <pre id="debug-text"></pre>
     <button id="debug-seethrough">See-through</button>
