@@ -20,6 +20,7 @@ Point an iPhone at an event ID badge and have media appear locked onto it. Phase
 - 2026-11-23: The video will have sound, so the app has a "Tap to start" screen (iOS needs a tap before audio plays).
 - 2026-11-23: Host for free so he can test by opening a link.
 - 2026-11-23: Repo created at https://github.com/jigarkpat3/ar-badge (public, so free GitHub Pages works later). Pushed with the box's gh CLI, which is logged in as jigarkpat3. Cursor cloud agents are linked as jigarkpat, so they can't push to it unless jigarkpat is added as a collaborator.
+- 2026-11-23: Tried a shared template target (assets/badge-target.png): Jigar's design export with the bleed/guide lines removed, the slot filled, and every per-person field blanked into the background gradient (name, event line, role, city, number), so one target could work for every badge. Not adopted for now. On Jigar's real photo it matched with 29 / 16 inliers (straight / rotated 25° at 0.8 scale) vs 49 / 31 for the photo-based target. A simulated photo of a different badge (Tej Patel's design composited onto the same table) gave 37 / 20 for the template target vs 31 / 18 for the photo target, so the photo target already carries over to other badges through the shared logo and SĀCHU text. MindAR needs only 6 inliers, so both work. The live assets/targets.mind stays photo-based. Re-test with a real photo of someone else's badge before switching. The compiled template target is in reference/targets-template.mind (not committed).
 
 ## Plan (approved 2026-11-23)
 Features in order:
@@ -61,5 +62,6 @@ ar-badge/
 - Weekly check-in: declined 2026-11-23.
 
 ## Assets
+- assets/badge-target.png: shared template target (750x1000, 3:4) made from Jigar's design export. Bleed/guide lines removed, slot hole and corners filled with background, per-person text (name, event line, role, city, number) blanked with a smooth gradient fill. Kept: top deity image, temple logo, three SĀCHU lines, divider, footer portraits/text. For reference only, not the live target (see Decisions). About 1,430 detection points and 23 + 18 tracking points, almost all on the logo, SĀCHU text, top image and footer.
 - assets/badge.jpg: Jigar's own event badge (SĀCHU SĀCHU SĀCHU, North American Activities Meeting 2026), from his phone photo. Personal use. Perspective-corrected and cropped to 750x1000. Measured aspect H/W 1.335, saved at exactly 4:3 (1.3333).
 - assets/targets.mind: compiled from badge.jpg with mind-ar 1.2.5's compiler (npm package, run in Node, .mind format v2). Must be loaded with mind-ar@1.2.5. About 1,900 detection points over 10 scales, 37 + 24 tracking points. Strongest on the logo, SĀCHU text and name. Weak on the plain black top band and the right side. Glossy badge, so watch for glare.
