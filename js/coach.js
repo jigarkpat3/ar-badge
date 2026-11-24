@@ -49,7 +49,7 @@ const coach = (function () {
     const old = history[0], dt = (now - old.t) / 1000;
     if (hadPose && dt > 0.1) {
       // badge widths per second, or radians per second, whichever is bigger
-      const speed = Math.max(pos.distanceTo(old.pos) / scl.x / dt, quat.angleTo(old.quat) / dt);
+      const speed = Math.max(pos.distanceTo(old.pos) / scl.x / dt, quat.angleTo(old.quat) * activeTarget().angleWeight / dt);
       // Peak-hold: jumps up at once, eases down over ~0.5 s, so a back-and-forth
       // sway reads as "moving" the whole time, not just at its fastest moments.
       m.speed = Math.max(speed, m.speed * Math.exp(-(now - lastTime) / 500));

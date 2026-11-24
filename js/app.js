@@ -118,6 +118,10 @@ const TUNING = {
 //   media         what's shown on it. null = the live item from the media
 //                 manager (media/manifest.json).
 //   label         used in the status line and tips ("Card found…").
+//   angleWeight   how much a change of angle counts as "moving" (smoothing in
+//                 follow-badge, "Hold steady" and the framing unlock). The
+//                 card's tracked strip is short, so its tilt reading is noisy:
+//                 counting it less smooths that noise instead of following it.
 // ---------------------------------------------------------------------------
 const TARGETS = [
   {
@@ -125,6 +129,7 @@ const TARGETS = [
     aspect: 4 / 3,
     cornerRadius: 0.032,                  // 24px of 750px
     place: { x: 0, y: 0, scale: 1 },
+    angleWeight: 1,
     media: null,
     group: '#badge-media', plane: '#overlay', video: '#overlay-video',
   },
@@ -134,6 +139,7 @@ const TARGETS = [
     cornerRadius: 3.18 / 85.6,            // ID-1 corner radius 3.18 mm
     // strip: 776 px wide, centre at (428, 115); card centre at (428, 270) px
     place: { x: 0, y: -(270 - 115) / 776, scale: 856 / 776 },
+    angleWeight: 0.3,
     media: { id: 'card-interstellar', type: 'video', file: 'assets/card-video.mp4', poster: 'assets/card-video-poster.jpg' },
     group: '#card-media', plane: '#card-overlay', video: '#card-video',
   },

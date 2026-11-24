@@ -137,7 +137,7 @@ AFRAME.registerComponent('follow-badge', {
     // because MindAR's distance estimate is the noisiest part) and angle in radians.
     this.delta.subVectors(this.rawPos, me.position);
     const posErr = Math.hypot(this.delta.x, this.delta.y, this.delta.z * T.depthWeight) / badgeWidth;
-    const angErr = me.quaternion.angleTo(this.rawRot);
+    const angErr = me.quaternion.angleTo(this.rawRot) * activeTarget().angleWeight;   // card: tilt is noisy
     const motion = Math.max(posErr, angErr);
 
     // 0 = at rest, 1 = moving fast. Pick a smoothing time in between.
