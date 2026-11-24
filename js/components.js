@@ -1,73 +1,16 @@
-// components.js: small A-Frame components used in index.html.
-//   active-target   one stand-in for whichever target (badge or card) is in view
-//   follow-badge    makes the photo glide smoothly after the tracked target
-//   rounded-corners rounds the photo's corners to match the target
-//   soft-shadow     a soft shadow under it
-// Their tuning numbers live in TUNING and TARGETS at the top of app.js.
-// ("badge" below means whichever target is in view.)
+// components.js: two small A-Frame components used in index.html.
+//   follow-badge    makes the photo glide smoothly after the tracked badge
+//   rounded-corners rounds the photo's corners to match the badge
+// Their tuning numbers live in TUNING at the top of app.js.
 
-const { Vector3, Quaternion, Matrix4, CanvasTexture } = AFRAME.THREE;
+const { Vector3, Quaternion, CanvasTexture } = AFRAME.THREE;
 
 // Clamp a number into the 0..1 range.
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
-// One entity (#tracked-target) that stands for whichever target MindAR sees,
-// so the rest of the page (follow-badge, coach.js, app.js) works the same for
-// the badge and the card. It copies the pose of the MindAR anchor in view,
-// moved and scaled by TARGETS[i].place so that, for every target, the origin
-// is the object's centre and 1 unit is its width. It fires the same events
-// as a MindAR anchor (targetFound, targetLost, targetUpdate), plus
-// 'targetchange' just before targetFound when a different target comes into
-// view. MindAR tracks one target at a time (maxTrack 1), so only one anchor
-// is ever visible.
-AFRAME.registerComponent('active-target', {
-  schema: {
-    anchors: { type: 'selectorAll' },   // the mindar-image-target entities
-  },
-
-  init: function () {
-    this.index = 0;   // TARGETS index of the target in view, or the last one seen
-    const me = this.el.object3D;
-    me.visible = false;
-    me.matrixAutoUpdate = false;
-    this.place = TARGETS.map(({ place: p }) => new Matrix4().compose(
-      new Vector3(p.x, p.y, 0), new Quaternion(), new Vector3(p.scale, p.scale, p.scale)));
-    this.data.anchors.forEach((anchorEl) => {
-      const i = Number(anchorEl.getAttribute('mindar-image-target').targetIndex);
-      // MindAR fires targetUpdate BEFORE it stores the new pose
-      // (mind-ar 1.2.5 aframe.js, updateWorldMatrix), so read it right after.
-      anchorEl.addEventListener('targetUpdate', () => queueMicrotask(() => this.copy(i, anchorEl.object3D)));
-    });
-  },
-
-  copy: function (i, anchor) {
-    const me = this.el.object3D;
-    if (anchor.visible) {
-      if (i !== this.index) {
-        if (me.visible) { me.visible = false; this.el.emit('targetLost'); }
-        this.index = i;
-        this.el.emit('targetchange', { index: i });
-      }
-      const found = !me.visible;
-      me.matrix.multiplyMatrices(anchor.matrix, this.place[i]);
-      me.visible = true;
-      this.el.emit('targetUpdate');
-      if (found) this.el.emit('targetFound', { index: i });
-    } else if (i === this.index) {
-      this.el.emit('targetUpdate');
-      if (me.visible) { me.visible = false; this.el.emit('targetLost'); }
-    }
-  },
-
-  // Mark every target lost (used when MindAR restarts).
-  reset: function () {
-    this.data.anchors.forEach((anchorEl) => anchorEl.components['mindar-image-target'].updateWorldMatrix(null));
-  },
-});
-
 AFRAME.registerComponent('follow-badge', {
   schema: {
-    target: { type: 'selector' },  // the tracked entity (#tracked-target)
+    target: { type: 'selector' },  // the MindAR anchor entity (#badge-target)
   },
 
   init: function () {
@@ -137,7 +80,7 @@ AFRAME.registerComponent('follow-badge', {
     // because MindAR's distance estimate is the noisiest part) and angle in radians.
     this.delta.subVectors(this.rawPos, me.position);
     const posErr = Math.hypot(this.delta.x, this.delta.y, this.delta.z * T.depthWeight) / badgeWidth;
-    const angErr = me.quaternion.angleTo(this.rawRot) * activeTarget().angleWeight;   // card: tilt is noisy
+    const angErr = me.quaternion.angleTo(this.rawRot);
     const motion = Math.max(posErr, angErr);
 
     // 0 = at rest, 1 = moving fast. Pick a smoothing time in between.
@@ -149,15 +92,6 @@ AFRAME.registerComponent('follow-badge', {
     me.position.lerp(this.rawPos, a);
     me.quaternion.slerp(this.rawRot, a);
     me.scale.lerp(this.rawScale, a);
-  },
-
-  // Another target came into view: drop the old pose and fade, so the next
-  // frame jumps straight onto the new target (app.js, on 'targetchange').
-  snap: function () {
-    this.opacity = 0;
-    this.setOpacity(0);
-    this.el.object3D.visible = false;
-    this.setState('hidden');
   },
 
   // Change state and tell the page (app.js shows the hint only when 'hidden').
@@ -189,24 +123,19 @@ AFRAME.registerComponent('follow-badge', {
 // The map is drawn once at startup from the exact rounded-rectangle shape
 // ("signed distance": how far each pixel is from the edge).
 AFRAME.registerComponent('rounded-corners', {
-  schema: {
-    target: { type: 'int', default: 0 },   // TARGETS index (shape and corners)
-  },
-
   init: function () {
     const O = TUNING.overlay;
     const s = O.overscan;
-    const A = TARGETS[this.data.target].aspect;   // height / width (badge 4/3, card 0.631)
-    this.el.setAttribute('width', s);           // 1 = target width
-    this.el.setAttribute('height', s * A);      // same shape as the target
+    this.el.setAttribute('width', s);           // 1 = badge width
+    this.el.setAttribute('height', s * 4 / 3);  // 3:4 like the badge
 
-    // Work in plane units: the plane is 1 wide and A tall in the map.
-    const w = O.alphaMapWidth, h = Math.round(w * A);
+    // Work in plane units: the plane is 1 wide and 4/3 tall in the map.
+    const w = O.alphaMapWidth, h = Math.round(w * 4 / 3);
     const soft = O.edgeSoftness;                 // width of the fade
-    const hx = 0.5 - soft / 2, hy = A / 2 - soft / 2;   // half-size of the visible shape
+    const hx = 0.5 - soft / 2, hy = 2 / 3 - soft / 2;   // half-size of the visible shape
     // Same corner as the badge, just grown outward by the overscan margin.
     const margin = hx - 0.5 / s;
-    const r = TARGETS[this.data.target].cornerRadius / s + margin;
+    const r = TUNING.cornerRadius / s + margin;
 
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -214,7 +143,7 @@ AFRAME.registerComponent('rounded-corners', {
     const ctx = canvas.getContext('2d');
     const img = ctx.createImageData(w, h);
     for (let j = 0; j < h; j++) {
-      const py = Math.abs((j + 0.5) / w - A / 2) - (hy - r);
+      const py = Math.abs((j + 0.5) / w - 2 / 3) - (hy - r);
       for (let i = 0; i < w; i++) {
         const px = Math.abs((i + 0.5) / w - 0.5) - (hx - r);
         // distance outside the rounded rectangle (negative = inside)
@@ -243,12 +172,12 @@ AFRAME.registerComponent('rounded-corners', {
     mesh.material.transparent = true;
     mesh.material.needsUpdate = true;
     mesh.renderOrder = 1;   // always drawn after (on top of) the shadow
-    // Cut the picture to the target's shape (media.js). The alpha map has its
+    // Cut the picture to the badge's 3:4 shape (media.js). The alpha map has its
     // own repeat/offset in three r158, so this doesn't move the rounded corners.
     const map = mesh.material.map;
     if (map && map.image) {
       const img = map.image;
-      const c = overlayMedia.crop(img.videoWidth || img.naturalWidth || img.width, img.videoHeight || img.naturalHeight || img.height, this.data.target);
+      const c = overlayMedia.crop(img.videoWidth || img.naturalWidth || img.width, img.videoHeight || img.naturalHeight || img.height);
       map.repeat.set(c.repeat[0], c.repeat[1]);
       map.offset.set(c.offset[0], c.offset[1]);
     }
@@ -262,18 +191,13 @@ AFRAME.registerComponent('rounded-corners', {
 // heavier toward the bottom edge. It fades with the overlay (follow-badge).
 // Turn off with ?shadow=0.
 AFRAME.registerComponent('soft-shadow', {
-  schema: {
-    target: { type: 'int', default: 0 },   // TARGETS index (shape and corners)
-  },
-
   init: function () {
     const S = TUNING.shadow;
     if (!S.enabled) return;
     const THREE = AFRAME.THREE;
-    const A = TARGETS[this.data.target].aspect;   // height / width
     const blur = S.blur;                     // in badge widths
     const pad = 3 * blur;                    // room for the fade around the badge
-    const pw = 1 + 2 * pad, ph = A + 2 * pad;
+    const pw = 1 + 2 * pad, ph = 4 / 3 + 2 * pad;
 
     // Alpha map: 1 under the badge, fading to 0 over about 2 x blur outside it.
     const w = 256, h = Math.round(w * ph / pw);
@@ -282,9 +206,9 @@ AFRAME.registerComponent('soft-shadow', {
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     const img = ctx.createImageData(w, h);
-    const r = TARGETS[this.data.target].cornerRadius;
+    const r = TUNING.cornerRadius;
     for (let j = 0; j < h; j++) {
-      const py = Math.abs(((j + 0.5) / h - 0.5) * ph) - (A / 2 - r);
+      const py = Math.abs(((j + 0.5) / h - 0.5) * ph) - (2 / 3 - r);
       for (let i = 0; i < w; i++) {
         const px = Math.abs(((i + 0.5) / w - 0.5) * pw) - (0.5 - r);
         const d = Math.hypot(Math.max(px, 0), Math.max(py, 0)) + Math.min(Math.max(px, py), 0) - r;

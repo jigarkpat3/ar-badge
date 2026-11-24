@@ -95,6 +95,8 @@ const TUNING = {
                            // shorter breaks just resume where it paused
   },
 
+  cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
+
   // The overlay's size and edge (components.js, rounded-corners).
   overlay: {
     overscan: 1.04,        // overlay is 4% bigger than the badge (2% each side), so the
@@ -103,47 +105,6 @@ const TUNING = {
     alphaMapWidth: 1024,   // detail of the edge shape picture (pixels)
   },
 };
-
-// ---------------------------------------------------------------------------
-// TARGETS: the things the camera looks for, in the same order as in
-// assets/targets.mind (index 0 first). Only one is tracked at a time.
-//   aspect        height / width of the real object
-//   cornerRadius  corner radius as a fraction of its width
-//   place         where the object sits relative to the image MindAR tracks,
-//                 in widths of that image (y up). The badge's tracked image IS
-//                 the badge. The card's is only the strip with the two logos
-//                 (targets/apple-card-strip2x.png, 776x170 px of the 856x540
-//                 card photo, from x 40, y 30): the rest of the white card has
-//                 too little detail for MindAR 1.2.5 to keep tracking it.
-//   media         what's shown on it. null = the live item from the media
-//                 manager (media/manifest.json).
-//   label         used in the status line and tips ("Card found…").
-//   angleWeight   how much a change of angle counts as "moving" (smoothing in
-//                 follow-badge, "Hold steady" and the framing unlock). The
-//                 card's tracked strip is short, so its tilt reading is noisy:
-//                 counting it less smooths that noise instead of following it.
-// ---------------------------------------------------------------------------
-const TARGETS = [
-  {
-    name: 'badge', label: 'badge',
-    aspect: 4 / 3,
-    cornerRadius: 0.032,                  // 24px of 750px
-    place: { x: 0, y: 0, scale: 1 },
-    angleWeight: 1,
-    media: null,
-    group: '#badge-media', plane: '#overlay', video: '#overlay-video',
-  },
-  {
-    name: 'card', label: 'card',
-    aspect: 54 / 85.6,                    // ID-1 card, 85.6 x 54 mm
-    cornerRadius: 3.18 / 85.6,            // ID-1 corner radius 3.18 mm
-    // strip: 776 px wide, centre at (428, 115); card centre at (428, 270) px
-    place: { x: 0, y: -(270 - 115) / 776, scale: 856 / 776 },
-    angleWeight: 0.3,
-    media: { id: 'card-interstellar', type: 'video', file: 'assets/card-video.mp4', poster: 'assets/card-video-poster.jpg' },
-    group: '#card-media', plane: '#card-overlay', video: '#card-video',
-  },
-];
 
 // Optional override from the address, e.g. ...?debug&fov=65
 const urlParams = new URLSearchParams(location.search);
@@ -163,13 +124,13 @@ const errorText     = document.querySelector('#error-text');
 const framing       = document.querySelector('#framing');
 const framingStatus = document.querySelector('#framing-status');
 const experienceButton = document.querySelector('#experience-button');
-const trackedEl     = document.querySelector('#tracked-target');   // whichever target is in view (components.js, active-target)
+const badgeEl       = document.querySelector('#badge-target');
 const follow        = () => holderEl.components['follow-badge'];
 
 // Hand MindAR its settings (this runs before A-Frame builds the scene).
 // autoStart:false = we start it from the tap. ui...:no = we use our own screens.
 sceneEl.setAttribute('mindar-image', Object.assign({
-  imageTargetSrc: './assets/targets.mind?v=12',   // ?v: new file = new number (phones cache it)
+  imageTargetSrc: './assets/targets.mind',
   autoStart: false, uiLoading: 'no', uiScanning: 'no', uiError: 'no',
 }, TUNING.mindar));
 
@@ -235,8 +196,8 @@ function restartAR() {
   lockFraming();
   runLog.note('restart (camera size changed)');
   arSystem.stop();
-  // Tell the targets they're lost, so no old position lingers (MindAR's own method).
-  trackedEl.components['active-target'].reset();
+  // Tell the badge entity it's lost, so no old position lingers (MindAR's own method).
+  badgeEl.components['mindar-image-target'].updateWorldMatrix(null);
   startAR();
 }
 
@@ -275,28 +236,13 @@ let experienceStarted = false;
 let healthySince = 0;   // start of the current healthy stretch (0 = not healthy)
 let foundAt = 0;        // when the current unbroken stretch of tracking began
 
-const activeTarget = () => TARGETS[(trackedEl.components['active-target'] || { index: 0 }).index];
-const foundText = () => activeTarget().label.replace(/^./, (c) => c.toUpperCase()) + ' found, hold steady…';
-
-trackedEl.addEventListener('targetFound', () => {
+badgeEl.addEventListener('targetFound', () => {
   if (experienceStarted) return;
   framing.classList.add('found');
   foundAt = performance.now();
-  coach.setFramingStatus(foundText());
+  coach.setFramingStatus('Badge found, hold steady…');
 });
-trackedEl.addEventListener('targetLost', () => { if (!experienceStarted) lockFraming(); });
-
-// A different target came into view (badge -> card or back). This fires just
-// before its targetFound. Swap what's shown: the outline's shape, the overlay
-// (each target has its own plane, shadow and video in index.html) and the video.
-trackedEl.addEventListener('targetchange', () => {
-  const t = activeTarget();
-  framing.classList.toggle('target-card', t.name === 'card');
-  TARGETS.forEach((x) => document.querySelector(x.group).setAttribute('visible', x === t));
-  follow().snap();   // start fresh on the new target (no gliding over from the old one)
-  overlayVideo.switchTo(TARGETS.indexOf(t));
-  runLog.note('target ' + t.name);
-});
+badgeEl.addEventListener('targetLost', () => { if (!experienceStarted) lockFraming(); });
 
 function lockFraming() {
   healthySince = 0;
@@ -313,7 +259,7 @@ setInterval(function checkReady() {
                                        : m.speed < F.maxSpeed;   // rate needs 1 s to count
   if (!healthy) {
     healthySince = 0;
-    if (!experienceButton.disabled) { experienceButton.disabled = true; coach.setFramingStatus(foundText()); }
+    if (!experienceButton.disabled) { experienceButton.disabled = true; coach.setFramingStatus('Badge found, hold steady…'); }
     return;
   }
   if (!healthySince) healthySince = now;
@@ -371,7 +317,7 @@ if (urlParams.has('debug')) {
   const lastSecond = (list) => { const now = performance.now(); while (list.length && list[0] < now - 1000) list.shift(); return list.length; };
   const countFrame = () => { frameTimes.push(performance.now()); requestAnimationFrame(countFrame); };
   requestAnimationFrame(countFrame);
-  trackedEl.addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
+  badgeEl.addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
 
   // "Log": the first-20-seconds log of this run and the previous one (runlog.js).
   const logBox = document.querySelector('#debug-log');
@@ -388,7 +334,7 @@ if (urlParams.has('debug')) {
     const v = arSystem && arSystem.video, c = arSystem && arSystem.controller;
     text.textContent = [
       `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
-      `target ${activeTarget().name}  state ${follow().state}  restarts ${restarts}`,
+      `state ${follow().state}  restarts ${restarts}`,
       experienceStarted ? 'phase experience'
         : `phase framing  found ${foundAt ? Math.round(performance.now() - foundAt) : 0} ms  healthy ${healthySince ? Math.round(performance.now() - healthySince) : 0}/${TUNING.framing.steadyMs} ms`,
       overlayVideo.debugText(),

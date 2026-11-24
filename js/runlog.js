@@ -12,7 +12,7 @@ const runLog = (function () {
   const KEY = 'arRunLog', SECONDS = 20;
   const lines = [];
   let t0 = 0, timer = null, sec = null, lastFrame = 0;
-  const badgeEl = document.querySelector('#tracked-target');   // badge or card
+  const badgeEl = document.querySelector('#badge-target');
   const holderEl = document.querySelector('#overlay-holder');
   const T3 = AFRAME.THREE, prevPos = new T3.Vector3(), prevQuat = new T3.Quaternion();
   let havePrev = false;
@@ -64,7 +64,7 @@ const runLog = (function () {
   }
 
   function everySecond() {
-    const v = overlayVideo.video();   // the video of the target in view
+    const v = document.querySelector('#overlay-video');
     const buffered = v.buffered.length ? v.buffered.end(v.buffered.length - 1).toFixed(0) : 0;
     const cam = arSystem && arSystem.video ? arSystem.video.videoWidth + 'x' + arSystem.video.videoHeight : '-';
     const shake = sec.n ? (100 * sec.shake / sec.n).toFixed(2) + '%' : '-';

@@ -112,8 +112,6 @@ html, body {
   transition: border-color 0.2s;
 }
 #framing.found #framing-outline { border: 4px solid var(--shurvirta); }   /* found */
-/* The card is in view (app.js, 'targetchange'): a landscape card outline. */
-#framing.target-card #framing-outline { width: min(86vw, 54vh * 1.585); aspect-ratio: 85.6 / 54; border-radius: 14px; }
 #framing-bottom { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 #framing-tips {
   display: flex;
@@ -147,7 +145,7 @@ html, body {
 
 /* The <video> only feeds the 3D plane; keep it in the page but invisible
    (not display:none, which can stop some phones from decoding it). */
-#overlay-video, #card-video {
+#overlay-video {
   position: fixed;
   left: 0;
   top: 0;

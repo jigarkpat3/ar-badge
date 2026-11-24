@@ -7,10 +7,6 @@
 //
 // Any shape of video or photo works: crop() works out how to cut it to the
 // badge's 3:4 shape ("cover", like a phone wallpaper), around item.focus.
-//
-// That's the badge (TARGETS[0] in app.js). Other targets (the card) have their
-// own fixed media in TARGETS[i].media; this file points their plane and
-// <video> at it too.
 
 const overlayMedia = (function () {
   const FALLBACK = { id: 'fallback', type: 'video', file: 'assets/overlay.mp4', poster: 'assets/overlay-poster.jpg' };
@@ -34,29 +30,24 @@ const overlayMedia = (function () {
     return item;
   }
 
-  // Point each target's plane and <video> at its media (the badge: the live item).
+  // Point the badge plane and the <video> at the live item.
   function applyToPage() {
-    TARGETS.forEach((t, i) => {
-      const it = itemFor(i);
-      const plane = document.querySelector(t.plane);
-      if (it.type === 'video') {
-        const video = document.querySelector(t.video);
-        video.poster = it.poster || '';
-        video.src = it.file;
-        if (it.poster) plane.setAttribute('material', 'src', it.poster);   // shown until the video plays
-      } else {
-        plane.setAttribute('material', 'src', it.file);
-      }
-    });
+    const plane = document.querySelector('#overlay');
+    if (item.type === 'video') {
+      const video = document.querySelector('#overlay-video');
+      video.poster = item.poster || '';
+      video.src = item.file;
+      if (item.poster) plane.setAttribute('material', 'src', item.poster);   // shown until the video plays
+    } else {
+      plane.setAttribute('material', 'src', item.file);
+    }
   }
-  const itemFor = (i) => TARGETS[i].media || item;
 
-  // Texture repeat/offset that shows a window of a (width x height) picture in
-  // the target's shape (badge 3:4), as big as possible, centred on focus (0..1,
-  // default the middle).
-  function crop(width, height, target = 0) {
-    const badge = 1 / TARGETS[target].aspect, aspect = width / height;   // width / height
-    const focus = itemFor(target).focus || {};
+  // Texture repeat/offset that shows a 3:4 window of a (width x height) picture,
+  // as big as possible, centred on focus (0..1, default the middle).
+  function crop(width, height) {
+    const badge = 3 / 4, aspect = width / height;
+    const focus = item.focus || {};
     const fx = focus.x ?? 0.5, fy = focus.y ?? 0.5;
     if (!width || !height || Math.abs(aspect - badge) < 0.005) return { repeat: [1, 1], offset: [0, 0] };
     if (aspect > badge) {             // wider than the badge: cut the sides
@@ -69,8 +60,8 @@ const overlayMedia = (function () {
 
   return {
     ready: loadManifest(),
-    isImage: (target = 0) => itemFor(target).type === 'image',
-    item: (target = 0) => itemFor(target),
+    isImage: () => item.type === 'image',
+    item: () => item,
     crop,
   };
 })();

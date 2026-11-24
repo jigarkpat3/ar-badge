@@ -7,19 +7,17 @@
 //   During the experience -> in the hint pill at the bottom
 // It also replaces the old "Point your camera at the badge" hint, so there is
 // never more than one pill. Thresholds live in TUNING.coach (app.js).
-// Uses app.js's arSystem, arIsReady, experienceStarted, follow() and activeTarget().
-// ("badge" below means whichever target is in view: badge or card.)
+// Uses app.js's arSystem, arIsReady, experienceStarted and follow().
 
 const coach = (function () {
   const C = TUNING.coach;
   const T3 = AFRAME.THREE;
-  const badgeEl = document.querySelector('#tracked-target');   // badge or card (components.js, active-target)
+  const badgeEl = document.querySelector('#badge-target');
   const hintEl = document.querySelector('#hint');
   const framingStatus = document.querySelector('#framing-status');
 
   // Measured values (also shown in ?debug and saved in the run log).
-  const lostTip = () => 'Point your camera at the ' + activeTarget().label;
-  const isLostTip = (text) => text.startsWith('Point your camera at the ');   // any target's
+  const LOST_TIP = 'Point your camera at the badge';
   const m = { rate: 0, speed: 0, size: 0, cutOff: false, angle: 0, light: -1, glare: 0, lostMs: 0 };
   const on = {};               // which problems are currently "on" (with hysteresis)
   let framingDefault = framingStatus.textContent;     // app.js's status text when there's no tip
@@ -33,6 +31,7 @@ const coach = (function () {
   const pos = new T3.Vector3(), quat = new T3.Quaternion(), scl = new T3.Vector3();
   const v = new T3.Vector3(), history = [];
   let lastTime = 0, hadPose = false, lostSince = performance.now(), foundSince = 0;
+  const corners = [[-0.5, 2 / 3], [0.5, 2 / 3], [0.5, -2 / 3], [-0.5, -2 / 3]];
   let screenQuad = null;       // badge corners in CSS px, for the glare check
 
   function measurePose(now) {
@@ -49,7 +48,7 @@ const coach = (function () {
     const old = history[0], dt = (now - old.t) / 1000;
     if (hadPose && dt > 0.1) {
       // badge widths per second, or radians per second, whichever is bigger
-      const speed = Math.max(pos.distanceTo(old.pos) / scl.x / dt, quat.angleTo(old.quat) * activeTarget().angleWeight / dt);
+      const speed = Math.max(pos.distanceTo(old.pos) / scl.x / dt, quat.angleTo(old.quat) / dt);
       // Peak-hold: jumps up at once, eases down over ~0.5 s, so a back-and-forth
       // sway reads as "moving" the whole time, not just at its fastest moments.
       m.speed = Math.max(speed, m.speed * Math.exp(-(now - lastTime) / 500));
@@ -57,8 +56,7 @@ const coach = (function () {
     hadPose = true; lastTime = now;
 
     // Where are the badge corners on screen?
-    const hy = activeTarget().aspect / 2;   // the target's corners: 1 wide, aspect tall
-    screenQuad = [[-0.5, hy], [0.5, hy], [0.5, -hy], [-0.5, -hy]].map(([x, y]) => {
+    screenQuad = corners.map(([x, y]) => {
       v.set(x, y, 0).applyMatrix4(anchor.matrixWorld).project(cam);
       return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight];
     });
@@ -147,12 +145,12 @@ const coach = (function () {
 
     if (tracking) {
       if (problem('moving', m.speed > C.moveOn, m.speed < C.moveOff)) return 'Hold steady';
-      if (problem('cut', m.cutOff, !m.cutOff)) return 'Keep the whole ' + activeTarget().label + ' in view';
+      if (problem('cut', m.cutOff, !m.cutOff)) return 'Keep the whole badge in view';
       if (dark) return 'Find better light';   // dim light also makes tracking slow and shaky
       if (problem('close', m.size > C.closeOn, m.size < C.closeOff)) return 'Move back a little';
       // A small badge gives a rough angle, so only judge the angle once it's big enough.
       if (problem('far', m.size < C.farOn, m.size > C.farOff)) return 'Move closer';
-      if (problem('angle', m.angle > C.angleOn, m.angle < C.angleOff)) return 'Face the ' + activeTarget().label + ' more directly';
+      if (problem('angle', m.angle > C.angleOn, m.angle < C.angleOff)) return 'Face the badge more directly';
       if (problem('glare', m.glare > C.glareOn, m.glare < C.glareOff)) return 'Tilt to avoid glare';
       // Tracking slow for no visible reason: holding still helps it lock on.
       const rateKnown = now - foundSince > 1000;   // the rate needs a second of tracking to count
@@ -167,7 +165,7 @@ const coach = (function () {
       return tips[Math.floor((m.lostMs - C.notFoundMs) / C.searchTipMs) % tips.length];
     }
     // Experience: once the photo has fully faded out, ask for the badge again.
-    return follow().state === 'hidden' ? lostTip() : '';
+    return follow().state === 'hidden' ? LOST_TIP : '';
   }
 
   // --- Show it, without flicker --------------------------------------------
@@ -181,11 +179,11 @@ const coach = (function () {
     const want = pickTip(now);
     if (want !== candidate) { candidate = want; candidateSince = now; }
     // The "point your camera" hint goes the moment the photo is back.
-    if (isLostTip(shown) && !isLostTip(want) && follow().state !== 'hidden') {
+    if (shown === LOST_TIP && want !== LOST_TIP && follow().state !== 'hidden') {
       shown = ''; shownAt = 0; render(); return;
     }
     const waitMs = !want ? C.clearAfterMs
-                 : want === lostTip() ? C.lostTipAfterMs
+                 : want === LOST_TIP ? C.lostTipAfterMs
                  : experienceStarted ? C.showAfterMsExperience : C.showAfterMs;
     if (candidate !== shown && now - candidateSince >= waitMs && (now - shownAt >= C.minShowMs || !shown)) {
       shown = candidate; shownAt = now;
