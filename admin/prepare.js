@@ -42,7 +42,7 @@ const prepare = (function () {
     const canvas = document.createElement('canvas');
     canvas.width = outW; canvas.height = Math.round(outH);
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#0a0a0a';   // near-black bars (NC27 palette)
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingQuality = 'high';
     if (mode === 'crop') {
