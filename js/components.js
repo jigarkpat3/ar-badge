@@ -37,6 +37,9 @@ AFRAME.registerComponent('follow-badge', {
     if (anchor.visible) {
       // MindAR found the badge. Its anchor matrix holds the raw pose.
       anchor.matrix.decompose(this.rawPos, this.rawRot, this.rawScale);
+      // Keep the photo's shape exactly 3:4: one size for both directions.
+      // (MindAR's filter can leave slightly different x/y sizes while moving.)
+      this.rawScale.setScalar((this.rawScale.x + this.rawScale.y) / 2);
 
       if (this.state === 'hidden') {
         // Fresh start: jump straight to the badge (no gliding in from nowhere).
@@ -46,18 +49,18 @@ AFRAME.registerComponent('follow-badge', {
       } else {
         this.glideToward(dt, T);
       }
-      this.state = 'tracking';
+      this.setState('tracking');
       this.lastSeen = time;
     } else if (this.state !== 'hidden') {
       // Badge lost: keep the last pose for a moment, then fade out.
-      this.state = (time - this.lastSeen < T.holdMs) ? 'holding' : 'fading';
+      this.setState((time - this.lastSeen < T.holdMs) ? 'holding' : 'fading');
     }
 
     // Fade: move opacity toward 1 (tracking/holding) or 0 (fading).
     const wantVisible = this.state === 'tracking' || this.state === 'holding';
     const step = dtMs / (wantVisible ? T.fadeInMs : T.fadeOutMs);
     this.opacity = clamp01(this.opacity + (wantVisible ? step : -step));
-    if (this.opacity === 0 && this.state === 'fading') this.state = 'hidden';
+    if (this.opacity === 0 && this.state === 'fading') this.setState('hidden');
 
     me.visible = this.opacity > 0;
     this.setOpacity(this.opacity * (this.seeThrough ? 0.5 : 1));
@@ -67,7 +70,7 @@ AFRAME.registerComponent('follow-badge', {
   // smoothed heavily; big differences (badge moving) are followed quickly.
   glideToward: function (dt, T) {
     const me = this.el.object3D;
-    const badgeWidth = this.rawScale.x;  // 1 badge width in scene units
+    const badgeWidth = this.rawScale.x;  // 1 badge width in scene units (same for y, see tick)
 
     // How far off are we? Position error in badge widths (depth counts less,
     // because MindAR's distance estimate is the noisiest part) and angle in radians.
@@ -85,6 +88,13 @@ AFRAME.registerComponent('follow-badge', {
     me.position.lerp(this.rawPos, a);
     me.quaternion.slerp(this.rawRot, a);
     me.scale.lerp(this.rawScale, a);
+  },
+
+  // Change state and tell the page (app.js shows the hint only when 'hidden').
+  setState: function (state) {
+    if (state === this.state) return;
+    this.state = state;
+    this.el.emit('overlaystate', { state: state });
   },
 
   setOpacity: function (value) {

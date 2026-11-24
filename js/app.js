@@ -1,5 +1,6 @@
 // app.js: tuning values, the start button, the hint, errors and the debug panel.
-// MindAR does the tracking; components.js makes the photo follow it smoothly.
+// MindAR does the tracking; camera.js fixes how it uses the camera;
+// components.js makes the photo follow it smoothly.
 
 // ---------------------------------------------------------------------------
 // TUNING: every knob in one place. Change a number, push, reload the phone.
@@ -28,12 +29,25 @@ const TUNING = {
     fadeOutMs: 250,
   },
 
+  // The camera (camera.js).
+  camera: {
+    width: 1280,   // the feed size we ask for (the phone gives the closest it has;
+    height: 720,   // in portrait an iPhone turns 1280x720 into 720x1280)
+    fovDeg: 70,    // how wide the camera sees along its long side, in degrees.
+                   // Measured about 71 from Jigar's iPhone recording. Try others
+                   // without editing code: add ?fov=65 to the address.
+  },
+
   cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
 };
 
+// Optional override from the address, e.g. ...?debug&fov=65
+const urlParams = new URLSearchParams(location.search);
+if (Number(urlParams.get('fov')) > 0) TUNING.camera.fovDeg = Number(urlParams.get('fov'));
+
 // ---------------------------------------------------------------------------
 const sceneEl       = document.querySelector('a-scene');
-const targetEl      = document.querySelector('#badge-target');
+const holderEl      = document.querySelector('#overlay-holder');
 const startScreen   = document.querySelector('#start-screen');
 const startButton   = document.querySelector('#start-button');
 const loadingScreen = document.querySelector('#loading-screen');
@@ -59,7 +73,10 @@ function showError(message) {
 }
 
 // 1. Enable the button once A-Frame has built the scene.
+let arSystem;
 function onSceneLoaded() {
+  arSystem = sceneEl.systems['mindar-image-system'];
+  useRealCameraFov(arSystem);   // camera.js: fixes the skew on tilted badges
   startButton.disabled = false;
   startButton.textContent = 'Tap to start';
 }
@@ -80,13 +97,36 @@ startButton.addEventListener('click', () => {
   //   const video = document.querySelector('#overlay-video');
   //   video.play().then(() => video.pause());
 
-  const arSystem = sceneEl.systems['mindar-image-system'];
-  arSystem.start();   // asks for the camera, then starts tracking
-
-  // MindAR sizes its camera <video> only once. If the phone changes the
-  // camera's frame size later, ask everything to re-fit the screen.
-  arSystem.video.addEventListener('resize', refitCameraView);
+  startAR();
 });
+
+function startAR() {
+  arSystem.start();   // asks for the camera, then starts tracking
+  // If the camera changes its frame size later, re-check (see below).
+  arSystem.video.addEventListener('resize', onCameraResize);
+}
+
+// MindAR reads the camera size once. If the camera later sends a different
+// size, its tracking math no longer fits, so restart it (at most twice).
+let arIsReady = false;
+let restarts = 0;
+function onCameraResize() {
+  if (!arIsReady) return;   // arReady checks it anyway
+  if (cameraSizeChanged(arSystem)) restartAR();
+  else refitCameraView();
+}
+function restartAR() {
+  if (restarts >= 2) return;
+  restarts++;
+  console.warn('Camera size changed, restarting AR');
+  arIsReady = false;
+  show(loadingScreen);
+  updateHint();
+  arSystem.stop();
+  // Tell the badge entity it's lost, so no old position lingers (MindAR's own method).
+  document.querySelector('#badge-target').components['mindar-image-target'].updateWorldMatrix(null);
+  startAR();
+}
 
 // A "resize" event makes MindAR re-fit its camera view and A-Frame its canvas.
 function refitCameraView() {
@@ -94,14 +134,14 @@ function refitCameraView() {
 }
 
 // 3. MindAR events.
-let arIsReady = false;
 sceneEl.addEventListener('arReady', () => {
+  if (cameraSizeChanged(arSystem) && restarts < 2) { restartAR(); return; }
   arIsReady = true;
   refitCameraView();
   // Wait two frames so the re-fit is on screen, then lift the cover.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     hide(loadingScreen);
-    if (!targetEl.object3D.visible) show(hint);
+    updateHint();
   }));
 });
 
@@ -111,8 +151,14 @@ sceneEl.addEventListener('arError', () => {
             'then tap Try again.');
 });
 
-targetEl.addEventListener('targetFound', () => hide(hint));
-targetEl.addEventListener('targetLost',  () => show(hint));
+// The hint follows the photo, not MindAR's raw found/lost events: it shows
+// only once the photo has fully faded out, and hides as soon as it comes back.
+function updateHint() {
+  const state = holderEl.components['follow-badge'].state;
+  if (arIsReady && state === 'hidden') show(hint);
+  else hide(hint);
+}
+holderEl.addEventListener('overlaystate', updateHint);
 
 // If the target file fails to load, MindAR doesn't fire arError, so catch it here.
 window.addEventListener('unhandledrejection', (event) => {
@@ -122,30 +168,31 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // 4. Debug panel: open the page with ?debug at the end of the address.
-if (new URLSearchParams(location.search).has('debug')) {
+if (urlParams.has('debug')) {
   const panel = document.querySelector('#debug');
   const text = document.querySelector('#debug-text');
-  const follow = () => document.querySelector('#overlay-holder').components['follow-badge'];
+  const follow = () => holderEl.components['follow-badge'];
   show(panel);
 
-  let frames = 0, trackUpdates = 0;
-  const countFrame = () => { frames++; requestAnimationFrame(countFrame); };
+  // Count frames and tracking updates; report the last second, 4 times a second.
+  const frameTimes = [], trackTimes = [];
+  const lastSecond = (list) => { const now = performance.now(); while (list.length && list[0] < now - 1000) list.shift(); return list.length; };
+  const countFrame = () => { frameTimes.push(performance.now()); requestAnimationFrame(countFrame); };
   requestAnimationFrame(countFrame);
-  targetEl.addEventListener('targetUpdate', () => trackUpdates++);  // one per tracked camera frame
+  document.querySelector('#badge-target').addEventListener('targetUpdate', () => trackTimes.push(performance.now()));
 
   document.querySelector('#debug-seethrough').addEventListener('click', () => {
     follow().seeThrough = !follow().seeThrough;   // half-transparent photo, to check the fit
   });
 
   setInterval(() => {
-    const ar = sceneEl.systems['mindar-image-system'];
-    const v = ar.video, c = ar.controller;
+    const v = arSystem && arSystem.video, c = arSystem && arSystem.controller;
     text.textContent = [
-      `fps ${frames}  tracking ${trackUpdates}/s`,
-      `state ${follow().state}`,
-      `camera ${v ? v.videoWidth + 'x' + v.videoHeight : '-'}  input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}`,
+      `fps ${lastSecond(frameTimes)}  tracking ${lastSecond(trackTimes)}/s`,
+      `state ${follow().state}  restarts ${restarts}`,
+      `asked ${TUNING.camera.width}x${TUNING.camera.height}  got ${v ? v.videoWidth + 'x' + v.videoHeight : '-'}`,
+      `input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}  fov ${TUNING.camera.fovDeg}`,
       `screen ${innerWidth}x${innerHeight}  page ${document.body.clientWidth}x${document.body.clientHeight}`,
     ].join('\n');
-    frames = 0; trackUpdates = 0;
-  }, 1000);
+  }, 250);
 }
