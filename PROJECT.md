@@ -69,3 +69,6 @@ ar-badge/
 - assets/badge-target.png: shared template target (750x1000, 3:4) made from Jigar's design export. Bleed/guide lines removed, slot hole and corners filled with background, per-person text (name, event line, role, city, number) blanked with a smooth gradient fill. Kept: top deity image, temple logo, three SĀCHU lines, divider, footer portraits/text. For reference only, not the live target (see Decisions). About 1,430 detection points and 23 + 18 tracking points, almost all on the logo, SĀCHU text, top image and footer.
 - assets/badge.jpg: Jigar's own event badge (SĀCHU SĀCHU SĀCHU, North American Activities Meeting 2026), from his phone photo. Personal use. Perspective-corrected and cropped to 750x1000. Measured aspect H/W 1.335, saved at exactly 4:3 (1.3333).
 - assets/targets.mind: compiled from badge.jpg with mind-ar 1.2.5's compiler (npm package, run in Node, .mind format v2). Must be loaded with mind-ar@1.2.5. About 1,900 detection points over 10 scales, 37 + 24 tracking points. Strongest on the logo, SĀCHU text and name. Weak on the plain black top band and the right side. Glossy badge, so watch for glare.
+
+## Hosting
+- 2026-11-23: GitHub Pages turned on (with Jigar's OK). It serves main / at https://jigarkpat3.github.io/ar-badge/ and HTTPS is enforced. Every push to main redeploys in about a minute.
