@@ -109,8 +109,8 @@ AFRAME.registerComponent('follow-badge', {
 });
 
 // Rounds the corners of a plane with an "alpha map": a small black-and-white
-// picture where white = visible and black = see-through. It works for a photo
-// now and will work the same for a video later.
+// picture where white = visible and black = see-through. Works the same for
+// the poster image and the video.
 AFRAME.registerComponent('rounded-corners', {
   init: function () {
     const w = 512, h = Math.round(512 * 4 / 3);   // same 3:4 shape as the badge
@@ -134,6 +134,7 @@ AFRAME.registerComponent('rounded-corners', {
 
     this.apply = this.apply.bind(this);
     this.el.addEventListener('object3dset', this.apply);  // when the mesh is (re)built
+    this.el.addEventListener('materialtextureloaded', this.apply);  // poster -> video switch
     this.apply();
   },
 

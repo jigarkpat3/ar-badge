@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=5" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=5: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/app.js?v=5" defer></script>
-  <script src="js/camera.js?v=5" defer></script>
-  <script src="js/sync.js?v=5" defer></script>
-  <script src="js/components.js?v=5" defer></script>
+       ?v=6: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=6" defer></script>
+  <script src="js/camera.js?v=6" defer></script>
+  <script src="js/sync.js?v=6" defer></script>
+  <script src="js/video.js?v=6" defer></script>
+  <script src="js/components.js?v=6" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -52,6 +53,18 @@
   <!-- 4. Hint shown while the badge isn't in view (during the experience). -->
   <div id="hint" class="hidden">Point your camera at the badge</div>
 
+  <!-- Sound buttons (experience only). "Tap for sound" appears only if the
+       phone refused to start the video with sound; the small one mutes/unmutes. -->
+  <button id="sound-button" class="hidden">🔊 Tap for sound</button>
+  <button id="mute-button" class="hidden" aria-label="Mute">🔊</button>
+
+  <!-- The video shown on the badge. It's outside <a-assets> on purpose: A-Frame
+       makes the whole scene wait until a preload="auto" asset is fully
+       downloaded (14 MB). Not autoplay: video.js starts it from the
+       "Start the experience" tap so it can play with sound. -->
+  <video id="overlay-video" src="./assets/overlay.mp4" poster="./assets/overlay-poster.jpg"
+         playsinline webkit-playsinline preload="auto" loop></video>
+
   <!-- 5. Friendly error message (camera blocked, no HTTPS, etc.). -->
   <div id="error-screen" class="screen hidden">
     <h1>Camera not available</h1>
@@ -77,9 +90,11 @@
     xr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
 
-    <!-- Files the scene uses. Later a <video> goes here too. -->
+    <!-- Files the scene uses. The poster (the video's first frame) shows on the
+         badge until the video is actually playing; then video.js switches the
+         plane to the video. -->
     <a-assets>
-      <img id="overlay-img" src="./assets/overlay.jpg" />
+      <img id="overlay-poster" src="./assets/overlay-poster.jpg" />
     </a-assets>
 
     <!-- MindAR moves the badge entity, so the camera stays still. -->
@@ -91,10 +106,11 @@
     <!-- What you see. follow-badge glides this toward the raw badge position
          every frame (smooths jitter, holds through dropouts, fades in/out). -->
     <a-entity id="overlay-holder" follow-badge="target: #badge-target">
-      <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape. -->
+      <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape
+           (overlay.mp4 is cropped to 720x960 = 3:4, so it fills it exactly). -->
       <a-plane id="overlay"
                width="1" height="1.3333"
-               material="shader: flat; src: #overlay-img; transparent: true; opacity: 0"
+               material="shader: flat; src: #overlay-poster; transparent: true; opacity: 0"
                rounded-corners></a-plane>
     </a-entity>
   </a-scene>

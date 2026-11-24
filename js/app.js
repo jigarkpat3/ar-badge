@@ -1,7 +1,7 @@
 // app.js: tuning values, the start button, the framing screen, the hint,
 // errors and the debug panel. MindAR does the tracking; camera.js fixes how it
-// uses the camera; sync.js keeps the picture in step; components.js makes the
-// photo follow the badge smoothly.
+// uses the camera; sync.js keeps the picture in step; video.js plays the video;
+// components.js makes the overlay ("photo" below = the video) follow the badge.
 
 // ---------------------------------------------------------------------------
 // TUNING: every knob in one place. Change a number, push, reload the phone.
@@ -53,6 +53,13 @@ const TUNING = {
                      // "Start the experience" unlocks. This also gives both
                      // smoothing filters time to settle, so the first photo frame
                      // sits right on the badge instead of swinging in skewed.
+  },
+
+  // The video on the badge (video.js).
+  video: {
+    restartAfterMs: 5000,  // if the badge was gone (photo fully faded) longer than
+                           // this, the video starts over when it's found again;
+                           // shorter breaks just resume where it paused
   },
 
   cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
@@ -116,6 +123,7 @@ startButton.addEventListener('click', () => {
   }
   hide(startScreen);
   show(loadingScreen);   // dark cover until the camera view is sized (see arReady)
+  overlayVideo.preload();   // video.js: start downloading the video during framing
   startAR();
 });
 
@@ -206,9 +214,7 @@ function lockFraming() {
 //    Keep this handler synchronous: iPhone Safari only lets a video play WITH
 //    SOUND if play() is called directly inside a tap.
 experienceButton.addEventListener('click', () => {
-  // Phase 2 (video) goes HERE, first thing, before anything async, e.g.
-  //   const video = document.querySelector('#overlay-video');
-  //   video.play();
+  overlayVideo.startWithSound();   // video.js: video.muted = false; video.play(). Keep it first.
   experienceStarted = true;
   clearTimeout(steadyTimer);
   hide(framing);
@@ -226,6 +232,9 @@ function updateHint() {
   else hide(hint);
 }
 holderEl.addEventListener('overlaystate', updateHint);
+
+// Pause the video when the photo has fully faded out, resume when it's back.
+holderEl.addEventListener('overlaystate', () => overlayVideo.onOverlayState(follow().state));
 
 // The synced camera picture (sync.js) is used only while the photo is on
 // screen. While framing there's no photo to line up, so the live view (newest
@@ -266,6 +275,7 @@ if (urlParams.has('debug')) {
       `state ${follow().state}  restarts ${restarts}`,
       experienceStarted ? 'phase experience'
         : `phase framing  steady ${foundAt ? Math.round(performance.now() - foundAt) : 0}/${TUNING.framing.steadyMs} ms`,
+      overlayVideo.debugText(),
       `camera ${v ? v.videoWidth + 'x' + v.videoHeight : '-'} @${cameraReport.fps}fps  tries ${cameraReport.tries.join('>') || '-'}`,
       `input ${c ? c.inputWidth + 'x' + c.inputHeight : '-'}  fov ${TUNING.camera.fovDeg}`,
       cameraSync ? `sync ${cameraSync.stats.active ? 'on' : 'standby'}  analyse ${Math.round(cameraSync.stats.lastAnalyseMs)} ms` : 'sync off (?sync=0)',
