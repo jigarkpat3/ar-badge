@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=2" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <!-- Our code. "defer" runs it after the page below is parsed. -->
-  <script src="js/app.js" defer></script>
+  <!-- Our code. "defer" runs them in this order, after the page is parsed but
+       before A-Frame builds the scene. app.js holds the tuning values.
+       ?v=2: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=2" defer></script>
+  <script src="js/components.js?v=2" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -21,28 +24,36 @@
     <button id="start-button" disabled>Loading…</button>
   </div>
 
-  <!-- 2. Hint shown while the badge isn't in view. -->
+  <!-- 2. Dark cover while the camera starts, so you never see it resizing. -->
+  <div id="loading-screen" class="screen hidden">
+    <div class="spinner"></div>
+    <p>Starting camera…</p>
+  </div>
+
+  <!-- 3. Hint shown while the badge isn't in view. -->
   <div id="hint" class="hidden">Point your camera at the badge</div>
 
-  <!-- 3. Friendly error message (camera blocked, no HTTPS, etc.). -->
+  <!-- 4. Friendly error message (camera blocked, no HTTPS, etc.). -->
   <div id="error-screen" class="screen hidden">
     <h1>Camera not available</h1>
     <p id="error-text"></p>
     <button onclick="location.reload()">Try again</button>
   </div>
 
+  <!-- 5. Debug panel, only shown when the address ends in ?debug -->
+  <div id="debug" class="hidden">
+    <pre id="debug-text"></pre>
+    <button id="debug-seethrough">See-through</button>
+  </div>
+
   <!--
-    The AR scene.
-    mindar-image: which target file to track. autoStart:false means we start it
-      ourselves from the button tap. uiLoading/uiScanning/uiError:no turn off
-      MindAR's built-in screens because we have our own above.
-      filterMinCF/filterBeta: smoothing (lower = steadier but laggier).
+    The AR scene. The MindAR settings (mindar-image) are added by app.js from
+    the TUNING values at its top, so all the knobs live in one place.
     renderer colorManagement: makes the photo's colors look like the original.
     xr-mode-ui: hides A-Frame's VR/AR goggles button (in A-Frame 1.5 this
       replaced the old name "vr-mode-ui" that older MindAR examples use).
   -->
   <a-scene
-    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.001; filterBeta: 0.001"
     renderer="colorManagement: true"
     xr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
@@ -55,12 +66,17 @@
     <!-- MindAR moves the badge entity, so the camera stays still. -->
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Everything inside this entity sticks to the badge. Its center is the badge's center. -->
-    <a-entity id="badge-target" mindar-image-target="targetIndex: 0">
+    <!-- The raw tracked badge position from MindAR. Nothing is drawn here. -->
+    <a-entity id="badge-target" mindar-image-target="targetIndex: 0"></a-entity>
+
+    <!-- What you see. follow-badge glides this toward the raw badge position
+         every frame (smooths jitter, holds through dropouts, fades in/out). -->
+    <a-entity id="overlay-holder" follow-badge="target: #badge-target">
       <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape. -->
       <a-plane id="overlay"
                width="1" height="1.3333"
-               material="shader: flat; src: #overlay-img"></a-plane>
+               material="shader: flat; src: #overlay-img; transparent: true; opacity: 0"
+               rounded-corners></a-plane>
     </a-entity>
   </a-scene>
 </body>

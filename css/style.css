@@ -49,5 +49,33 @@ html, body {
   white-space: nowrap;
 }
 
+/* Loading spinner on the "Starting camera…" cover. */
+.spinner {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 20px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #f5c542;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Debug panel (only with ?debug in the address). */
+#debug {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 950;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: #0f0;
+  background: rgba(0, 0, 0, 0.7);
+  font: 11px/1.4 ui-monospace, Menlo, monospace;
+}
+#debug pre { margin: 0 0 6px; font: inherit; }
+#debug button { font: inherit; padding: 4px 8px; }
+
 /* Anything with class "hidden" disappears. app.js adds and removes it. */
 .hidden { display: none !important; }
+
