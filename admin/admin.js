@@ -12,33 +12,129 @@ let busy = false;
 const localThumbs = {};   // uploads from this visit, shown before the site has them
 
 // ---------------------------------------------------------------- login ----
-async function logIn(token, remember) {
-  $('login-button').disabled = true;
-  $('login-error').textContent = '';
+// Two ways in: the password (if one was set: admin/auth.json on the site) or
+// the GitHub token itself. Either way the token is what talks to GitHub.
+const AUTH_PATH = 'admin/auth.json';
+let authFile = null;   // the published auth.json, or null if there's none
+
+async function fetchAuthFile() {
+  try {   // from the published site, never from cache (Pages caches for 10 minutes)
+    const response = await fetch(SITE + AUTH_PATH + '?t=' + Date.now(), { cache: 'no-store' });
+    return response.ok ? await response.json() : null;
+  } catch (e) { return null; }
+}
+
+// Log in with a token (pasted, decrypted from the password, or remembered).
+async function logIn(token, remember, errorEl) {
+  errorEl.textContent = '';
   try {
     await github.logIn(token);
-    (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token.trim());
-    $('token').value = '';
-    show($('login'), false); show($('app')); show($('logout'));
   } catch (e) {
     sessionStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY);
-    $('login-error').textContent = e.message;   // never includes the token
-    show($('login')); show($('app'), false); show($('logout'), false);
-  } finally {
-    $('login-button').disabled = false;
+    errorEl.textContent = e.message;   // never includes the token
+    return false;
   }
-  if (!$('app').classList.contains('hidden')) {
-    loadLibrary().catch((e) => status('Couldn’t load the library: ' + e.message, 'bad'));
-  }
+  (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token.trim());
+  show($('login'), false); show($('app')); show($('logout'));
+  loadLibrary().catch((e) => status('Couldn’t load the library: ' + e.message, 'bad'));
+  updatePasswordCard();
+  return true;
 }
-$('login-form').addEventListener('submit', (e) => { e.preventDefault(); logIn($('token').value, $('remember').checked); });
+
+function showLogin(which) {   // 'password' or 'token'
+  show($('app'), false); show($('logout'), false); show($('login'));
+  show($('password-form'), which === 'password');
+  show($('login-form'), which === 'token');
+  show($('use-password'), !!authFile);
+  (which === 'password' ? $('password') : $('token')).focus();
+}
+
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('login-button').disabled = true;
+  if (await logIn($('token').value, $('login-form').querySelector('.remember').checked, $('login-error'))) $('token').value = '';
+  $('login-button').disabled = false;
+});
+
+$('password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const button = $('password-button'), error = $('password-error');
+  button.disabled = true; button.textContent = 'Checking…'; error.textContent = '';
+  try {
+    authFile = (await fetchAuthFile()) || authFile;
+    if (!authFile) { error.textContent = 'No password is set any more. Use a token.'; return; }
+    let token;
+    try { token = await auth.unlock($('password').value, authFile); }
+    catch (err) { error.textContent = 'Wrong password'; return; }
+    const ok = await logIn(token, $('password-form').querySelector('.remember').checked, error);
+    if (ok) $('password').value = '';
+    else if (/isn’t valid/.test(error.textContent)) {
+      error.textContent = 'Your saved token expired (or was revoked). Log in with a new token and set your password again.';
+    }
+  } finally {
+    button.disabled = false; button.textContent = 'Log in';
+  }
+});
+$('use-token').addEventListener('click', (e) => { e.preventDefault(); showLogin('token'); });
+$('use-password').addEventListener('click', (e) => { e.preventDefault(); showLogin('password'); });
+
 $('logout').addEventListener('click', () => {
   sessionStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY);
   github.logOut();
-  show($('app'), false); show($('logout'), false); show($('login'));
+  showLogin(authFile ? 'password' : 'token');
 });
-const saved = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
-if (saved) logIn(saved, !!localStorage.getItem(TOKEN_KEY)); else show($('login'));
+
+(async function start() {
+  authFile = await fetchAuthFile();
+  const saved = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+  if (saved && await logIn(saved, !!localStorage.getItem(TOKEN_KEY), $('login-error'))) return;
+  showLogin(authFile ? 'password' : 'token');
+})();
+
+// ------------------------------------------------------- password card ----
+async function updatePasswordCard() {
+  const exists = await github.fileExists(AUTH_PATH).catch(() => !!authFile);
+  $('password-state').textContent = exists
+    ? 'A password is set. Setting a new one replaces it.'
+    : 'No password yet. Set one to log in by typing it instead of pasting the token.';
+  $('set-password').textContent = exists ? 'Change password' : 'Set password';
+  show($('remove-password'), exists);
+}
+
+$('set-password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const error = $('set-password-error'), p1 = $('new-password').value, p2 = $('new-password-2').value;
+  error.textContent = '';
+  if (p1.length < auth.MIN_LENGTH) { error.textContent = `Use at least ${auth.MIN_LENGTH} characters (a few words is easiest).`; return; }
+  if (p1 !== p2) { error.textContent = 'The two passwords don’t match.'; return; }
+  $('set-password').disabled = true;
+  status('Locking the token with your password…');
+  try {
+    const file = await auth.lock(p1, github.token());
+    await github.saveFile('Set admin password', AUTH_PATH, JSON.stringify(file, null, 2) + '\n');
+    authFile = file;
+    $('new-password').value = ''; $('new-password-2').value = '';
+    status('Password saved. It works on the login screen in about a minute.', 'ok');
+  } catch (err) {
+    status('Couldn’t save the password: ' + err.message, 'bad');
+  } finally {
+    $('set-password').disabled = false;
+    updatePasswordCard();
+  }
+});
+
+$('remove-password').addEventListener('click', async () => {
+  if (!confirm('Remove password login? You’ll need the token to log in again.')) return;
+  status('Removing…');
+  try {
+    if (await github.fileExists(AUTH_PATH)) await github.saveFile('Remove admin password', AUTH_PATH, null);
+    authFile = null;
+    status('Password login removed. Log in with the token from now on.', 'ok');
+  } catch (err) {
+    status('Couldn’t remove it: ' + err.message, 'bad');
+  }
+  updatePasswordCard();
+});
 
 // -------------------------------------------------------------- library ----
 async function loadLibrary() {

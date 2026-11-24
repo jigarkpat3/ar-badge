@@ -6,11 +6,12 @@
   <meta name="robots" content="noindex" />
   <title>Badge media · Admin</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="admin.css?v=9" />
+  <link rel="stylesheet" href="admin.css?v=10" />
   <!-- github.js: API calls. prepare.js: photo/video processing. admin.js: the page. -->
-  <script src="github.js?v=9" defer></script>
-  <script src="prepare.js?v=9" defer></script>
-  <script src="admin.js?v=9" defer></script>
+  <script src="github.js?v=10" defer></script>
+  <script src="auth.js?v=10" defer></script>
+  <script src="prepare.js?v=10" defer></script>
+  <script src="admin.js?v=10" defer></script>
 </head>
 <body>
   <header>
@@ -19,26 +20,37 @@
     <button id="logout" class="quiet hidden">Log out</button>
   </header>
 
-  <!-- Login: a GitHub token for this repo is the password. -->
+  <!-- Login. With a saved password (admin/auth.json): type the password.
+       Otherwise (or "Use a token instead"): paste the GitHub token. -->
   <section id="login" class="card hidden">
-    <h2>Log in</h2>
-    <p>Paste your GitHub token for <b>jigarkpat3/ar-badge</b>. Only a token that can write to this repository can change anything.</p>
+    <form id="password-form" class="hidden">
+      <h2>Log in</h2>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required />
+      <label class="check"><input class="remember" type="checkbox" /> Remember on this device</label>
+      <button type="submit" id="password-button">Log in</button>
+      <p id="password-error" class="error"></p>
+      <a href="#" id="use-token" class="small-link">Use a token instead</a>
+    </form>
+
     <form id="login-form">
+      <h2>Log in with a token</h2>
+      <p>Paste your GitHub token for <b>jigarkpat3/ar-badge</b>. Only a token that can write to this repository can change anything.</p>
       <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required />
-      <label class="check"><input id="remember" type="checkbox" /> Remember on this device</label>
+      <label class="check"><input class="remember" type="checkbox" /> Remember on this device</label>
       <button type="submit" id="login-button">Log in</button>
       <p id="login-error" class="error"></p>
+      <a href="#" id="use-password" class="small-link hidden">Use the password instead</a>
+      <details>
+        <summary>How to make a token</summary>
+        <ol>
+          <li>GitHub › your picture › <b>Settings</b> › <b>Developer settings</b> › <b>Personal access tokens</b> › <b>Fine-grained tokens</b> › <b>Generate new token</b>.</li>
+          <li>Name: “Badge admin”. Expiration: 90 days (or what you like).</li>
+          <li>Repository access: <b>Only select repositories</b> › <b>jigarkpat3/ar-badge</b>.</li>
+          <li>Permissions › Repository permissions › <b>Contents: Read and write</b> (Metadata: Read-only is added by itself).</li>
+          <li>Generate, copy it, paste it here. Then set a password (after logging in) so next time you can just type that.</li>
+        </ol>
+      </details>
     </form>
-    <details>
-      <summary>How to make a token</summary>
-      <ol>
-        <li>GitHub › your picture › <b>Settings</b> › <b>Developer settings</b> › <b>Personal access tokens</b> › <b>Fine-grained tokens</b> › <b>Generate new token</b>.</li>
-        <li>Name: “Badge admin”. Expiration: 90 days (or what you like).</li>
-        <li>Repository access: <b>Only select repositories</b> › <b>jigarkpat3/ar-badge</b>.</li>
-        <li>Permissions › Repository permissions › <b>Contents: Read and write</b> (Metadata: Read-only is added by itself).</li>
-        <li>Generate, copy it, paste it here.</li>
-      </ol>
-    </details>
   </section>
 
   <main id="app" class="hidden">
@@ -76,6 +88,20 @@
     <section class="card">
       <h2>Library</h2>
       <div id="library"></div>
+    </section>
+
+    <!-- Password login (auth.js). Only while logged in. -->
+    <section class="card" id="password-card">
+      <h2>Login password</h2>
+      <p id="password-state" class="info">Checking…</p>
+      <form id="set-password-form">
+        <input id="new-password" type="password" autocomplete="new-password" placeholder="New password" required minlength="12" />
+        <input id="new-password-2" type="password" autocomplete="new-password" placeholder="Type it again" required minlength="12" />
+        <p class="info">At least 12 characters. A long phrase is best, like four random words: “purple tiger candle river”. The locked token is public on the site, so a strong password is what protects it.</p>
+        <button type="submit" id="set-password">Set password</button>
+        <button type="button" id="remove-password" class="small danger hidden">Remove password login</button>
+        <p id="set-password-error" class="error"></p>
+      </form>
     </section>
   </main>
 </body>

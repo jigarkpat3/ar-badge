@@ -41,3 +41,6 @@ button.danger { color: #b3261e; }
 .item .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .live { display: inline-block; font-size: 12px; font-weight: 700; color: #fff; background: #34c759; border-radius: 6px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px; }
 details { margin-top: 10px; font-size: 14px; }
+.small-link { font-size: 14px; color: #666; }
+#password-card input[type=password] { max-width: 420px; }
+#set-password-form button { margin-right: 8px; }
