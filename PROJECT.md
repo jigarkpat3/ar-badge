@@ -19,6 +19,7 @@ Point an iPhone at an event ID badge and have media appear locked onto it. Phase
 - 2026-11-23: Start with a photo overlay to learn tracking, then move to video. Keep the media swappable.
 - 2026-11-23: The video will have sound, so the app has a "Tap to start" screen (iOS needs a tap before audio plays).
 - 2026-11-23: Host for free so he can test by opening a link.
+- 2026-11-23: Repo created at https://github.com/jigarkpat3/ar-badge (public, so free GitHub Pages works later). Pushed with the box's gh CLI, which is logged in as jigarkpat3. Cursor cloud agents are linked as jigarkpat, so they can't push to it unless jigarkpat is added as a collaborator.
 
 ## Proposed plan (waiting for Jigar's OK)
 Features in order:
@@ -50,9 +51,9 @@ ar-badge/
 ## Done
 - Requirements gathered.
 - Reference video reviewed.
+- GitHub repo created with plan + skeleton.
 
 ## Next
-- Jigar OKs the plan and hosting choice.
 - Get the badge image.
 
 ## Open questions
