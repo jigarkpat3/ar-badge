@@ -20,17 +20,20 @@ const TUNING = {
 
   // Our extra smoothing on top (components.js, follow-badge).
   follow: {
-    // Round 4 (simulation with MindAR's real filter): vs round 3 about 35% less
-    // shake when still and about half the trail on fast moves.
-    restSmoothTime: 0.22,  // seconds; used when the badge is still (hides jitter)
+    // Video round 2: calmer when still (about half the shake of round 4 in the
+    // simulation) with the same trail when moving. Small slow drifts can now
+    // sit about 1% off before it catches up; the overscan below hides that.
+    restSmoothTime: 0.4,   // seconds; used when the badge is still (hides jitter)
     fastSmoothTime: 0,     // seconds; used when it moves (0 = no delay at all)
-    restMotion: 0.008,     // below this much difference we count as "still"
+    restMotion: 0.012,     // below this much difference we count as "still"
     fastMotion: 0.025,     // above this we count as "moving fast"
                            // (both in badge widths for position, radians for angle)
     depthWeight: 0.3,      // count distance changes less (they're the noisiest)
     holdMs: 500,           // keep showing the photo this long after the badge is lost
     fadeInMs: 200,
     fadeOutMs: 250,
+    hintDelayMs: 400,      // after the photo has faded, wait this long before the
+                           // hint shows (no hint flashing during a quick re-find)
   },
 
   // The camera (camera.js).
@@ -63,6 +66,14 @@ const TUNING = {
   },
 
   cornerRadius: 0.032,     // badge corner radius as a fraction of its width (24px of 750px)
+
+  // The overlay's size and edge (components.js, rounded-corners).
+  overlay: {
+    overscan: 1.04,        // overlay is 4% bigger than the badge (2% each side), so the
+                           // real badge edge never peeks out from under it
+    edgeSoftness: 0.004,   // soft edge, as a fraction of the width (~3 screen px)
+    alphaMapWidth: 1024,   // detail of the edge shape picture (pixels)
+  },
 };
 
 // Optional override from the address, e.g. ...?debug&fov=65
@@ -227,9 +238,14 @@ experienceButton.addEventListener('click', () => {
 //    hint shows (all as before); we wait for the badge, no going back to framing.
 // The hint follows the photo, not MindAR's raw found/lost events: it shows
 // only once the photo has fully faded out, and hides as soon as it comes back.
+let hintTimer = null;
 function updateHint() {
-  if (arIsReady && experienceStarted && follow().state === 'hidden') show(hint);
-  else hide(hint);
+  clearTimeout(hintTimer);
+  if (arIsReady && experienceStarted && follow().state === 'hidden') {
+    hintTimer = setTimeout(() => show(hint), TUNING.follow.hintDelayMs);
+  } else {
+    hide(hint);
+  }
 }
 holderEl.addEventListener('overlaystate', updateHint);
 

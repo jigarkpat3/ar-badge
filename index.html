@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SĀCHU Badge AR</title>
   <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
-  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
 
   <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
   <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <!-- Our code. "defer" runs them in this order, after the page is parsed but
        before A-Frame builds the scene. app.js holds the tuning values.
-       ?v=6: bump this number when these files change, so phones don't use an old cached copy. -->
-  <script src="js/app.js?v=6" defer></script>
-  <script src="js/camera.js?v=6" defer></script>
-  <script src="js/sync.js?v=6" defer></script>
-  <script src="js/video.js?v=6" defer></script>
-  <script src="js/components.js?v=6" defer></script>
+       ?v=7: bump this number when these files change, so phones don't use an old cached copy. -->
+  <script src="js/app.js?v=7" defer></script>
+  <script src="js/camera.js?v=7" defer></script>
+  <script src="js/sync.js?v=7" defer></script>
+  <script src="js/video.js?v=7" defer></script>
+  <script src="js/components.js?v=7" defer></script>
 </head>
 <body>
   <!-- 1. Start screen. Covers everything until the user taps. -->
@@ -51,12 +51,20 @@
   </div>
 
   <!-- 4. Hint shown while the badge isn't in view (during the experience). -->
-  <div id="hint" class="hidden">Point your camera at the badge</div>
+  <div id="hint" class="glass hidden">Point your camera at the badge</div>
 
   <!-- Sound buttons (experience only). "Tap for sound" appears only if the
        phone refused to start the video with sound; the small one mutes/unmutes. -->
-  <button id="sound-button" class="hidden">🔊 Tap for sound</button>
-  <button id="mute-button" class="hidden" aria-label="Mute">🔊</button>
+  <button id="sound-button" class="glass hidden">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></svg>
+    Tap for sound
+  </button>
+  <button id="mute-button" class="glass hidden" aria-label="Mute">
+    <!-- speaker with sound waves (shown when sound is on) -->
+    <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></svg>
+    <!-- speaker with a cross (shown when muted) -->
+    <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
+  </button>
 
   <!-- The video shown on the badge. It's outside <a-assets> on purpose: A-Frame
        makes the whole scene wait until a preload="auto" asset is fully
@@ -86,7 +94,7 @@
       replaced the old name "vr-mode-ui" that older MindAR examples use).
   -->
   <a-scene
-    renderer="colorManagement: true"
+    renderer="colorManagement: true; maxCanvasWidth: -1; maxCanvasHeight: -1"
     xr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
 

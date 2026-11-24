@@ -62,11 +62,14 @@ const overlayVideo = (function () {
 
   muteButton.addEventListener('click', () => {
     video.muted = !video.muted;
+    muteButton.classList.remove('pop');   // small "press" animation
+    void muteButton.offsetWidth;          // (restart it if tapped quickly)
+    muteButton.classList.add('pop');
     if (!video.muted) { hide(soundButton); video.play().catch(() => {}); }
     updateMuteButton();
   });
   function updateMuteButton() {
-    muteButton.textContent = video.muted ? '🔇' : '🔊';
+    muteButton.classList.toggle('muted', video.muted);   // CSS swaps the icon
     muteButton.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
   }
 

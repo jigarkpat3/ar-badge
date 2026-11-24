@@ -108,28 +108,53 @@ AFRAME.registerComponent('follow-badge', {
   },
 });
 
-// Rounds the corners of a plane with an "alpha map": a small black-and-white
-// picture where white = visible and black = see-through. Works the same for
-// the poster image and the video.
+// The overlay's shape: a bit bigger than the badge (TUNING.overlay.overscan,
+// so the real badge edge never peeks out) with rounded corners and a soft,
+// slightly feathered edge.
+//
+// Why soft: on iPhones A-Frame turns off antialiasing, so a hard edge is drawn
+// as pixel "stairs" that crawl when the overlay moves even a fraction of a
+// pixel. Here the edge comes from an "alpha map" (a black-and-white picture:
+// white = visible, black = see-through) that fades from 1 to 0 over a couple of
+// screen pixels, and the plane's own border is fully see-through. The GPU
+// blends that fade smoothly, so the edge stays smooth at any position.
+// The map is drawn once at startup from the exact rounded-rectangle shape
+// ("signed distance": how far each pixel is from the edge).
 AFRAME.registerComponent('rounded-corners', {
   init: function () {
-    const w = 512, h = Math.round(512 * 4 / 3);   // same 3:4 shape as the badge
-    const r = TUNING.cornerRadius * w;            // corner radius in canvas pixels
+    const O = TUNING.overlay;
+    const s = O.overscan;
+    this.el.setAttribute('width', s);           // 1 = badge width
+    this.el.setAttribute('height', s * 4 / 3);  // 3:4 like the badge
+
+    // Work in plane units: the plane is 1 wide and 4/3 tall in the map.
+    const w = O.alphaMapWidth, h = Math.round(w * 4 / 3);
+    const soft = O.edgeSoftness;                 // width of the fade
+    const hx = 0.5 - soft / 2, hy = 2 / 3 - soft / 2;   // half-size of the visible shape
+    // Same corner as the badge, just grown outward by the overscan margin.
+    const margin = hx - 0.5 / s;
+    const r = TUNING.cornerRadius / s + margin;
+
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();                 // a rectangle with rounded corners
-    ctx.moveTo(r, 0);
-    ctx.arcTo(w, 0, w, h, r);
-    ctx.arcTo(w, h, 0, h, r);
-    ctx.arcTo(0, h, 0, 0, r);
-    ctx.arcTo(0, 0, w, 0, r);
-    ctx.closePath();
-    ctx.fill();
+    const img = ctx.createImageData(w, h);
+    for (let j = 0; j < h; j++) {
+      const py = Math.abs((j + 0.5) / w - 2 / 3) - (hy - r);
+      for (let i = 0; i < w; i++) {
+        const px = Math.abs((i + 0.5) / w - 0.5) - (hx - r);
+        // distance outside the rounded rectangle (negative = inside)
+        const d = Math.hypot(Math.max(px, 0), Math.max(py, 0)) + Math.min(Math.max(px, py), 0) - r;
+        const t = Math.min(1, Math.max(0, 0.5 - d / soft));
+        const v = Math.round(255 * t * t * (3 - 2 * t));   // smoothstep fade
+        const k = (j * w + i) * 4;
+        img.data[k] = img.data[k + 1] = img.data[k + 2] = v;
+        img.data[k + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    // Default CanvasTexture filtering = linear with mipmaps (smooth when big or small).
     this.alphaMap = new CanvasTexture(canvas);
 
     this.apply = this.apply.bind(this);
