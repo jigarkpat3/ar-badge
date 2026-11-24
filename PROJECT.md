@@ -6,6 +6,8 @@ Point an iPhone at an event ID badge and have media appear locked onto it. Phase
 ## Platform and versions
 - Web app in iPhone Safari, with no app install.
 - MindAR image tracking 1.2.5 (mindar-image-aframe) plus A-Frame 1.5.0, loaded from a CDN with pinned versions.
+- Exact URLs (jsDelivr): https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js (bundles three.js r158) and https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js. A-Frame 1.5.0 is the version the MindAR 1.2.5 docs pair it with, so no downgrade needed.
+- A-Frame 1.5.0 gotcha: the VR button component is `xr-mode-ui` (older MindAR examples say `vr-mode-ui`, which does nothing in 1.5.0). Color is handled by `renderer="colorManagement: true"` (the `color-space` attribute in old examples doesn't exist in 1.5.0).
 - Hosting: free HTTPS static hosting for testing (proposed: GitHub Pages under jigarkpat3). Needs Jigar's go-ahead before any repo or deploy.
 
 ## About Jigar
@@ -54,14 +56,16 @@ ar-badge/
 - Reference video reviewed.
 - GitHub repo created with plan + skeleton.
 - Feature 1 (badge target): badge photo flattened to assets/badge.jpg, compiled to assets/targets.mind with mind-ar 1.2.5 (2026-11-23).
+- Features 2 + 3 (2026-11-23): index.html, js/app.js, css/style.css. "Tap to start" screen calls `sceneEl.systems['mindar-image-system'].start()` inside the tap (mindar-image autoStart: false, built-in MindAR UI off). Photo overlay is an a-plane 1 x 1.3333, flat shader, sRGB. Smoothing filterMinCF 0.001, filterBeta 0.001 (docs defaults are 0.001 / 1000; this is steadier with a bit more lag; retune in feature 4). Hint "Point your camera at the badge" shows after arReady and on targetLost, hides on targetFound. Friendly error screen for arError (camera blocked), non-HTTPS pages, and a failed target load. Tested headlessly in Chrome with a fake camera made from the badge photo: arReady, targetFound, targetLost, targetFound all fired, the photo lines up with the badge edges, colors are sRGB, no console errors (screenshots in reference/test-*.png, not committed).
 
 ## Next
-- Features 2 + 3: "Tap to start" screen and photo overlay on the badge (plane 1 wide x 1.3333 tall).
+- Feature 5 (hosting): turn on GitHub Pages for jigarkpat3/ar-badge so Jigar can open an HTTPS link on his iPhone. Waiting for Jigar's OK before enabling it.
 
 ## Open questions
 - Weekly check-in: declined 2026-11-23.
 
 ## Assets
+- assets/overlay.jpg: Jigar's own photo (sent 2026-11-23), the phase 1 overlay. Resized and compressed from 8.4 MB to 750x1000 (3:4), 136 KB.
 - assets/badge-target.png: shared template target (750x1000, 3:4) made from Jigar's design export. Bleed/guide lines removed, slot hole and corners filled with background, per-person text (name, event line, role, city, number) blanked with a smooth gradient fill. Kept: top deity image, temple logo, three SĀCHU lines, divider, footer portraits/text. For reference only, not the live target (see Decisions). About 1,430 detection points and 23 + 18 tracking points, almost all on the logo, SĀCHU text, top image and footer.
 - assets/badge.jpg: Jigar's own event badge (SĀCHU SĀCHU SĀCHU, North American Activities Meeting 2026), from his phone photo. Personal use. Perspective-corrected and cropped to 750x1000. Measured aspect H/W 1.335, saved at exactly 4:3 (1.3333).
 - assets/targets.mind: compiled from badge.jpg with mind-ar 1.2.5's compiler (npm package, run in Node, .mind format v2). Must be loaded with mind-ar@1.2.5. About 1,900 detection points over 10 scales, 37 + 24 tracking points. Strongest on the logo, SĀCHU text and name. Weak on the plain black top band and the right side. Glossy badge, so watch for glare.

@@ -1,0 +1,53 @@
+/* Full-screen page with no scrolling, so the camera fills the screen. */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+/* Shared look for the start and error screens: dark, centered, on top of everything. */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  background: #111;
+}
+.screen h1 { margin: 0 0 12px; font-size: 28px; }
+.screen p  { margin: 0 0 32px; max-width: 320px; line-height: 1.4; opacity: 0.85; }
+
+.screen button {
+  font-size: 22px;
+  font-weight: 600;
+  padding: 18px 48px;
+  border: none;
+  border-radius: 999px;
+  color: #111;
+  background: #f5c542;
+}
+.screen button:disabled { opacity: 0.5; }
+
+/* Small pill near the bottom that says "Point your camera at the badge". */
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  z-index: 900;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+/* Anything with class "hidden" disappears. app.js adds and removes it. */
+.hidden { display: none !important; }

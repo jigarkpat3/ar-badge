@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SĀCHU Badge AR</title>
+  <link rel="icon" href="data:," />  <!-- no favicon, avoids a 404 -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Libraries, pinned to exact versions. Order matters: A-Frame first, then MindAR. -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-v1.5.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- Our code. "defer" runs it after the page below is parsed. -->
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <!-- 1. Start screen. Covers everything until the user taps. -->
+  <div id="start-screen" class="screen">
+    <h1>SĀCHU Badge AR</h1>
+    <p>Point your camera at your event badge to see it come alive.</p>
+    <button id="start-button" disabled>Loading…</button>
+  </div>
+
+  <!-- 2. Hint shown while the badge isn't in view. -->
+  <div id="hint" class="hidden">Point your camera at the badge</div>
+
+  <!-- 3. Friendly error message (camera blocked, no HTTPS, etc.). -->
+  <div id="error-screen" class="screen hidden">
+    <h1>Camera not available</h1>
+    <p id="error-text"></p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+
+  <!--
+    The AR scene.
+    mindar-image: which target file to track. autoStart:false means we start it
+      ourselves from the button tap. uiLoading/uiScanning/uiError:no turn off
+      MindAR's built-in screens because we have our own above.
+      filterMinCF/filterBeta: smoothing (lower = steadier but laggier).
+    renderer colorManagement: makes the photo's colors look like the original.
+    xr-mode-ui: hides A-Frame's VR/AR goggles button (in A-Frame 1.5 this
+      replaced the old name "vr-mode-ui" that older MindAR examples use).
+  -->
+  <a-scene
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.001; filterBeta: 0.001"
+    renderer="colorManagement: true"
+    xr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <!-- Files the scene uses. Later a <video> goes here too. -->
+    <a-assets>
+      <img id="overlay-img" src="./assets/overlay.jpg" />
+    </a-assets>
+
+    <!-- MindAR moves the badge entity, so the camera stays still. -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Everything inside this entity sticks to the badge. Its center is the badge's center. -->
+    <a-entity id="badge-target" mindar-image-target="targetIndex: 0">
+      <!-- width 1 = the badge's width. height 1.3333 = the badge's 3:4 shape. -->
+      <a-plane id="overlay"
+               width="1" height="1.3333"
+               material="shader: flat; src: #overlay-img"></a-plane>
+    </a-entity>
+  </a-scene>
+</body>
+</html>
