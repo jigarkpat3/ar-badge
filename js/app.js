@@ -117,6 +117,11 @@ const TUNING = {
     edgeSoftness: 0.004,   // soft edge, as a fraction of the width (~3 screen px)
     alphaMapWidth: 1024,   // detail of the edge shape picture (pixels)
   },
+
+  // Temporary test gate (round 15 / v14): only iPhones may start the camera.
+  // To remove: set this to false, or delete requireIPhone, isIPhone() and the
+  // check in the start-button click handler. ?anydevice also skips it.
+  requireIPhone: true,
 };
 
 // Optional override from the address, e.g. ...?debug&fov=65
@@ -124,6 +129,7 @@ const urlParams = new URLSearchParams(location.search);
 if (Number(urlParams.get('fov')) > 0) TUNING.camera.fovDeg = Number(urlParams.get('fov'));
 if (urlParams.get('sync') === '0') TUNING.sync = false;
 if (urlParams.get('shadow') === '0') TUNING.shadow.enabled = false;
+if (urlParams.has('anydevice')) TUNING.requireIPhone = false;  // skip the iPhone-only test gate
 
 // ---------------------------------------------------------------------------
 const sceneEl       = document.querySelector('a-scene');
@@ -173,9 +179,23 @@ else sceneEl.addEventListener('loaded', onSceneLoaded);
 
 // 2. First tap: start the camera. iPhone Safari only allows the camera from a
 //    real tap. (The video with sound starts on the SECOND tap, see step 4.)
+// iPhone only (temporary test gate). iPad, including iPadOS's Mac-like
+// user agent, is not an iPhone. ?anydevice skips this.
+function isIPhone() {
+  const ua = navigator.userAgent || '';
+  if (/iPad/.test(ua)) return false;
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return false;
+  return /iPhone/.test(ua);
+}
+
 startButton.addEventListener('click', () => {
   if (!window.isSecureContext) {   // camera needs https:// (or localhost)
     showError('This page needs to be opened with https:// for the camera to work.');
+    return;
+  }
+  if (TUNING.requireIPhone && !isIPhone()) {
+    console.error('error 302: device error');
+    showError('error 302: device error');
     return;
   }
   hide(startScreen);
